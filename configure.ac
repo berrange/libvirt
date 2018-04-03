@@ -886,7 +886,7 @@ AC_CONFIG_FILES([\
         src/libvirt-qemu.pc \
         src/libvirt-lxc.pc \
         libvirt.spec mingw-libvirt.spec \
-        po/Makefile.in \
+        po/Makefile \
         include/libvirt/libvirt-common.h \
         examples/Makefile \
         tests/Makefile \

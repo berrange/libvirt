@@ -19,8 +19,6 @@ dnl
 
 AC_DEFUN([LIBVIRT_GETTEXT], [
 
-  dnl Check for gettext - don't go any newer than what RHEL 5 supports
-  dnl
   dnl save and restore CPPFLAGS around gettext check as the internal iconv
   dnl check might leave -I/usr/local/include in CPPFLAGS on FreeBSD resulting
   dnl in the build picking up previously installed libvirt/libvirt.h instead
@@ -29,7 +27,6 @@ AC_DEFUN([LIBVIRT_GETTEXT], [
   dnl to INCLUDES in order to preserve changes made by gettext but in a place
   dnl that does not break the build
   save_CPPFLAGS="$CPPFLAGS"
-  AM_GNU_GETTEXT_VERSION([0.17])
   AM_GNU_GETTEXT([external])
   GETTEXT_CPPFLAGS=
   if test "x$save_CPPFLAGS" != "x$CPPFLAGS"; then
@@ -46,5 +43,21 @@ AC_DEFUN([LIBVIRT_GETTEXT], [
   AC_SUBST([GETTEXT_CPPFLAGS])
 
   ALL_LINGUAS=`cd "$srcdir/po" > /dev/null && ls *.po | sed 's+\.po$++'`
+
+  dnl GNU gettext tools (optional).
+  AC_CHECK_PROG([XGETTEXT],[xgettext],[xgettext],[no])
+  AC_CHECK_PROG([MSGFMT],[msgfmt],[msgfmt],[no])
+  AC_CHECK_PROG([MSGMERGE],[msgmerge],[msgmerge],[no])
+
+  dnl Check they are the GNU gettext tools.
+  AC_MSG_CHECKING([msgfmt is GNU tool])
+  if $MSGFMT --version >/dev/null 2>&1 && $MSGFMT --version | grep -q 'GNU gettext'; then
+    msgfmt_is_gnu=yes
+  else
+    msgfmt_is_gnu=no
+  fi
+  AC_MSG_RESULT([$msgfmt_is_gnu])
+  AM_CONDITIONAL([HAVE_GNU_GETTEXT],
+    [test "x$XGETTEXT" != "xno" && test "x$MSGFMT" != "xno" && test "x$MSGMERGE" != "xno" && test "x$msgfmt_is_gnu" != "xno"])
 
 ])
