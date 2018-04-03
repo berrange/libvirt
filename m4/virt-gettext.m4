@@ -47,4 +47,16 @@ AC_DEFUN([LIBVIRT_GETTEXT], [
 
   ALL_LINGUAS=`cd "$srcdir/po" > /dev/null && ls *.po | sed 's+\.po$++'`
 
+  dnl Rely on AM_GNU_GETTEXT to have set MSGFMT, MSGMERGE & XGETTEXT vars
+  dnl Now check they are the GNU gettext tools.
+  AC_MSG_CHECKING([msgfmt is GNU tool])
+  if $MSGFMT --version >/dev/null 2>&1 && $MSGFMT --version | grep -q 'GNU gettext'; then
+    msgfmt_is_gnu=yes
+  else
+    msgfmt_is_gnu=no
+  fi
+  AC_MSG_RESULT([$msgfmt_is_gnu])
+  AM_CONDITIONAL([HAVE_GNU_GETTEXT],
+    [test "x$XGETTEXT" != "xno" && test "x$MSGFMT" != "xno" && test "x$MSGMERGE" != "xno" && test "x$msgfmt_is_gnu" != "xno"])
+
 ])
