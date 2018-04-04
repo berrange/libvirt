@@ -20,6 +20,8 @@ POTFILE := $(DOMAIN).pot
 POFILES := $(LANGS:%=%.po)
 GMOFILES := $(LANGS:%=%.gmo)
 
+MAINTAINERCLEANFILES = $(POTFILE) $(POFILES) $(GMOFILES)
+
 EXTRA_DIST = \
 	POTFILES \
 	$(POTFILE) \
@@ -40,38 +42,42 @@ XGETTEXT_ARGS = \
 	--directory=$(top_srcdir) \
 	$(NULL)
 
-# Although they're in EXTRA_DIST, we still need to
-# copy these again, because update-gmo will change
-# their content, and dist-hook runs after the
-# things in EXTRA_DIST are copied.
-dist-hook: $(GMOFILES)
-	cp -f $(POTFILE:%=$(srcdir)/%) $(distdir)/
-	cp -f $(POFILES:%=$(srcdir)/%) $(distdir)/
-	cp -f $(GMOFILES:%=$(srcdir)/%) $(distdir)/
+SED_PO_FIXES = \
+	-e "s|text/plain; charset=CHARSET|text/plain; charset=UTF-8|g" \
+	-e "s|SOME DESCRIPTIVE TITLE|Libvirt package strings|g" \
+	-e "s|Copyright (C) YEAR|Copyright (C) $$(date +'%Y')|" \
+	$(NULL)
 
 update-po: $(POFILES)
 
 update-gmo: $(GMOFILES)
+
+update-mini-po: $(POTFILE)
+	for lang in $(LANGS); do \
+	  echo "Minimizing $$lang content" && \
+	  $(MSGMERGE) --no-location --no-fuzzy-matching --sort-output \
+	    $$lang.po $(POTFILE) | \
+	  $(SED) $(SED_PO_FIXES) | \
+	  $(PERL) $(top_srcdir)/build-aux/minimize-po.pl > \
+	    $(srcdir)/$$lang.mini.po ; \
+	done
 
 push-pot: $(POTFILE)
 	zanata push --push-type=source
 
 pull-po: $(POTFILE)
 	zanata pull --create-skeletons
-	$(MAKE) update-po
+	$(MAKE) update-mini-po
 	$(MAKE) update-gmo
 
 $(POTFILE): POTFILES $(POTFILE_DEPS)
 	$(XGETTEXT) -o $(srcdir)/$@ $(XGETTEXT_ARGS) \
 	  --files-from=$(abs_srcdir)/POTFILES
-	$(SED) -i \
-	  -e "s|text/plain; charset=CHARSET|text/plain; charset=UTF-8|g" \
-	  -e "s|SOME DESCRIPTIVE TITLE|Libvirt package strings|g" \
-	  -e "s|Copyright (C) YEAR|Copyright (C) $$(date +'%Y')|" $@
+	$(SED) -i $(SED_PO_FIXES) $@
 
-%.po: $(POTFILE)
-	cd $(srcdir) && \
-	  $(MSGMERGE) --backup=off --no-fuzzy-matching --update $@ $(POTFILE)
+%.po: %.mini.po $(POTFILE)
+	$(MSGMERGE) --no-fuzzy-matching $< $(POTFILE) | \
+	  $(SED) $(SED_PO_FIXES) > $@
 
 %.gmo: %.po
 	rm -f $(srcdir)/$@ $@-t
