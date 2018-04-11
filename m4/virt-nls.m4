@@ -17,32 +17,36 @@ dnl License along with this library.  If not, see
 dnl <http://www.gnu.org/licenses/>.
 dnl
 
-AC_DEFUN([LIBVIRT_GETTEXT], [
+AC_DEFUN([LIBVIRT_ARG_NLS],[
+  LIBVIRT_ARG_ENABLE([NLS], [NLS], [check])
+])
 
-  dnl save and restore CPPFLAGS around gettext check as the internal iconv
-  dnl check might leave -I/usr/local/include in CPPFLAGS on FreeBSD resulting
-  dnl in the build picking up previously installed libvirt/libvirt.h instead
-  dnl of the correct one from the source tree.
-  dnl compute the difference between save_CPPFLAGS and CPPFLAGS and append it
-  dnl to INCLUDES in order to preserve changes made by gettext but in a place
-  dnl that does not break the build
-  save_CPPFLAGS="$CPPFLAGS"
-  AM_GNU_GETTEXT([external])
-  GETTEXT_CPPFLAGS=
-  if test "x$save_CPPFLAGS" != "x$CPPFLAGS"; then
-    set dummy $CPPFLAGS; shift
-    for var
-    do
-      case " $var " in
-        " $save_CPPFLAGS ") ;;
-        *) GETTEXT_CPPFLAGS="$GETTEXT_CPPFLAGS $var" ;;
-      esac
-    done
+AC_DEFUN([LIBVIRT_CHECK_NLS],[
+  if test "x$enable_nls" != "xno"
+  then
+    AC_CHECK_FUNC([gettext], [], [
+      AC_CHECK_LIB([intl], [gettext], [], [
+        if test "x$enable_nls" == "xcheck"
+	then
+	  enable_nls=no
+	else
+          AC_MSG_ERROR([gettext() is required to build libvirt]")
+	fi
+      ])
+    ])
   fi
-  CPPFLAGS="$save_CPPFLAGS"
-  AC_SUBST([GETTEXT_CPPFLAGS])
 
-  ALL_LINGUAS=`cd "$srcdir/po" > /dev/null && ls *.po | sed 's+\.po$++'`
+  if test "x$enable_nls" != "xno"
+  then
+    AC_CHECK_HEADERS([libintl.h], [enable_nls=yes],[
+      if test "x$enable_nls" == "xcheck"
+      then
+        enable_nls=no
+      else
+        AC_MSG_ERROR([libintl.h is required to build libvirt]")
+      fi
+    ])
+  fi
 
   dnl GNU gettext tools (optional).
   AC_CHECK_PROG([XGETTEXT],[xgettext],[xgettext],[no])
@@ -57,7 +61,10 @@ AC_DEFUN([LIBVIRT_GETTEXT], [
     msgfmt_is_gnu=no
   fi
   AC_MSG_RESULT([$msgfmt_is_gnu])
-  AM_CONDITIONAL([HAVE_GNU_GETTEXT],
+  AM_CONDITIONAL([HAVE_GNU_GETTEXT_TOOLS],
     [test "x$XGETTEXT" != "xno" && test "x$MSGFMT" != "xno" && test "x$MSGMERGE" != "xno" && test "x$msgfmt_is_gnu" != "xno"])
+])
 
+AC_DEFUN([LIBVIRT_RESULT_NLS],[
+  LIBVIRT_RESULT([NLS], [$enable_nls])
 ])

@@ -26,7 +26,7 @@ EXTRA_DIST = \
 	$(POFILES) \
 	$(GMOFILES)
 
-if HAVE_GNU_GETTEXT
+if HAVE_GNU_GETTEXT_TOOLS
 
 XGETTEXT_ARGS = \
 	--default-domain=$(DOMAIN) \
@@ -72,7 +72,7 @@ $(POTFILE): POTFILES $(POTFILE_DEPS)
 
 .PRECIOUS: $(POTFILE) $(POFILES)
 
-endif HAVE_GNU_GETTEXT
+endif HAVE_GNU_GETTEXT_TOOLS
 
 # Cannot use 'localedir' since this conflicts with autoconf.
 langinstdir = $(datadir)/locale
