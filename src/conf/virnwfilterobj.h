@@ -22,6 +22,7 @@
 # include "internal.h"
 
 # include "nwfilter_conf.h"
+# include "virnwfilterbindingobjlist.h"
 
 typedef struct _virNWFilterObj virNWFilterObj;
 typedef virNWFilterObj *virNWFilterObjPtr;
@@ -36,6 +37,8 @@ struct _virNWFilterDriverState {
     bool privileged;
 
     virNWFilterObjListPtr nwfilters;
+
+    virNWFilterBindingObjListPtr bindings;
 
     char *configDir;
 };

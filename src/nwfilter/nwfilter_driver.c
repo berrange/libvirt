@@ -38,7 +38,6 @@
 #include "domain_conf.h"
 #include "domain_nwfilter.h"
 #include "nwfilter_driver.h"
-#include "virnwfilterbindingdef.h"
 #include "nwfilter_gentech_driver.h"
 #include "configmake.h"
 #include "virfile.h"
@@ -191,6 +190,9 @@ nwfilterStateInitialize(bool privileged,
     if (!(driver->nwfilters = virNWFilterObjListNew()))
         goto error;
 
+    if (!(driver->bindings = virNWFilterBindingObjListNew()))
+        goto error;
+
     if (!privileged)
         return 0;
 
@@ -335,6 +337,8 @@ nwfilterStateCleanup(void)
         VIR_FREE(driver->configDir);
         nwfilterDriverUnlock();
     }
+
+    virObjectUnref(driver->bindings);
 
     /* free inactive nwfilters */
     virNWFilterObjListFree(driver->nwfilters);
@@ -647,13 +651,36 @@ nwfilterInstantiateFilter(const char *vmname,
                           const unsigned char *vmuuid,
                           virDomainNetDefPtr net)
 {
-    virNWFilterBindingDefPtr binding;
+    virNWFilterBindingObjPtr obj;
+    virNWFilterBindingDefPtr def;
     int ret;
 
-    if (!(binding = virNWFilterBindingDefForNet(vmname, vmuuid, net)))
+    obj = virNWFilterBindingObjListFindByPortDev(driver->bindings, net->ifname);
+    if (obj) {
+        virReportError(VIR_ERR_INTERNAL_ERROR,
+                       _("Filter already present for NIC %s"), net->ifname);
+        virNWFilterBindingObjEndAPI(&obj);
         return -1;
-    ret = virNWFilterInstantiateFilter(driver, binding);
-    virNWFilterBindingDefFree(binding);
+    }
+
+    if (!(def = virNWFilterBindingDefForNet(vmname, vmuuid, net)))
+        return -1;
+
+    obj = virNWFilterBindingObjListAdd(driver->bindings,
+                                       def);
+    if (!obj) {
+        virNWFilterBindingDefFree(def);
+        return -1;
+    }
+    def = NULL;
+
+    ret = virNWFilterInstantiateFilter(driver, obj->def);
+
+    if (ret < 0)
+        virNWFilterBindingObjListRemove(driver->bindings, obj);
+
+    virNWFilterBindingObjEndAPI(&obj);
+
     return ret;
 }
 
@@ -661,16 +688,18 @@ nwfilterInstantiateFilter(const char *vmname,
 static void
 nwfilterTeardownFilter(virDomainNetDefPtr net)
 {
-    virNWFilterBindingDef binding = {
-        .portdevname = net->ifname,
-        .linkdevname = (net->type == VIR_DOMAIN_NET_TYPE_DIRECT ?
-                        net->data.direct.linkdev : NULL),
-        .mac = net->mac,
-        .filter = net->filter,
-        .filterparams = net->filterparams,
-    };
-    if ((net->ifname) && (net->filter))
-        virNWFilterTeardownFilter(&binding);
+    virNWFilterBindingObjPtr obj;
+    if (!net->ifname)
+        return;
+
+    obj = virNWFilterBindingObjListFindByPortDev(driver->bindings, net->ifname);
+    if (!obj)
+        return;
+
+    virNWFilterTeardownFilter(obj->def);
+
+    virNWFilterBindingObjListRemove(driver->bindings, obj);
+    virNWFilterBindingObjEndAPI(&obj);
 }
 
 
