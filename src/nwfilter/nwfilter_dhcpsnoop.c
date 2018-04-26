@@ -497,15 +497,18 @@ virNWFilterSnoopIPLeaseInstallRule(virNWFilterSnoopIPLeasePtr ipl,
 
     /* instantiate the filters */
 
-    if (req->ifname)
+    if (req->ifname) {
+        virNWFilterBindingDef binding = {
+            .portdevname = req->ifname,
+            .linkdevname = req->linkdev,
+            .mac = req->macaddr,
+            .filter = req->filtername,
+            .filterparams = req->vars,
+        };
         rc = virNWFilterInstantiateFilterLate(req->driver,
-                                              NULL,
-                                              req->ifname,
-                                              req->ifindex,
-                                              req->linkdev,
-                                              &req->macaddr,
-                                              req->filtername,
-                                              req->vars);
+                                              &binding,
+                                              req->ifindex);
+    }
 
  exit_snooprequnlock:
     virNWFilterSnoopReqUnlock(req);
@@ -884,14 +887,16 @@ virNWFilterSnoopReqLeaseDel(virNWFilterSnoopReqPtr req,
         goto skip_instantiate;
 
     if (ipAddrLeft) {
+        virNWFilterBindingDef binding = {
+            .portdevname = req->ifname,
+            .linkdevname = req->linkdev,
+            .mac = req->macaddr,
+            .filter = req->filtername,
+            .filterparams = req->vars,
+        };
         ret = virNWFilterInstantiateFilterLate(req->driver,
-                                               NULL,
-                                               req->ifname,
-                                               req->ifindex,
-                                               req->linkdev,
-                                               &req->macaddr,
-                                               req->filtername,
-                                               req->vars);
+                                               &binding,
+                                               req->ifindex);
     } else {
         virNWFilterVarValuePtr dhcpsrvrs =
             virHashLookup(req->vars, NWFILTER_VARNAME_DHCPSERVER);
