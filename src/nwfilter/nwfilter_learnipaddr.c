@@ -137,12 +137,8 @@ typedef struct _virNWFilterIPAddrLearnReq virNWFilterIPAddrLearnReq;
 typedef virNWFilterIPAddrLearnReq *virNWFilterIPAddrLearnReqPtr;
 struct _virNWFilterIPAddrLearnReq {
     virNWFilterTechDriverPtr techdriver;
-    char ifname[IF_NAMESIZE];
     int ifindex;
-    char linkdev[IF_NAMESIZE];
-    virMacAddr macaddr;
-    char *filtername;
-    virHashTablePtr filterparams;
+    virNWFilterBindingDefPtr binding;
     virNWFilterDriverStatePtr driver;
     enum howDetect howDetect;
 
@@ -232,8 +228,7 @@ virNWFilterIPAddrLearnReqFree(virNWFilterIPAddrLearnReqPtr req)
     if (!req)
         return;
 
-    VIR_FREE(req->filtername);
-    virHashFree(req->filterparams);
+    virNWFilterBindingDefFree(req->binding);
 
     VIR_FREE(req);
 }
@@ -404,8 +399,9 @@ learnIPAddressThread(void *arg)
     virNWFilterIPAddrLearnReqPtr req = arg;
     uint32_t vmaddr = 0, bcastaddr = 0;
     unsigned int ethHdrSize;
-    char *listen_if = (strlen(req->linkdev) != 0) ? req->linkdev
-                                                  : req->ifname;
+    char *listen_if = (req->binding->linkdevname ?
+                       req->binding->linkdevname :
+                       req->binding->portdevname);
     int dhcp_opts_len;
     char macaddr[VIR_MAC_STRING_BUFLEN];
     virBuffer buf = VIR_BUFFER_INITIALIZER;
@@ -415,13 +411,13 @@ learnIPAddressThread(void *arg)
     enum howDetect howDetected = 0;
     virNWFilterTechDriverPtr techdriver = req->techdriver;
 
-    if (virNWFilterLockIface(req->ifname) < 0)
+    if (virNWFilterLockIface(req->binding->portdevname) < 0)
        goto err_no_lock;
 
     req->status = 0;
 
     /* anything change to the VM's interface -- check at least once */
-    if (virNetDevValidateConfig(req->ifname, NULL, req->ifindex) <= 0) {
+    if (virNetDevValidateConfig(req->binding->portdevname, NULL, req->ifindex) <= 0) {
         virResetLastError();
         req->status = ENODEV;
         goto done;
@@ -435,12 +431,12 @@ learnIPAddressThread(void *arg)
         goto done;
     }
 
-    virMacAddrFormat(&req->macaddr, macaddr);
+    virMacAddrFormat(&req->binding->mac, macaddr);
 
     switch (req->howDetect) {
     case DETECT_DHCP:
-        if (techdriver->applyDHCPOnlyRules(req->ifname,
-                                           &req->macaddr,
+        if (techdriver->applyDHCPOnlyRules(req->binding->portdevname,
+                                           &req->binding->mac,
                                            NULL, false) < 0) {
             req->status = EINVAL;
             goto done;
@@ -448,8 +444,8 @@ learnIPAddressThread(void *arg)
         virBufferAddLit(&buf, "src port 67 and dst port 68");
         break;
     case DETECT_STATIC:
-        if (techdriver->applyBasicRules(req->ifname,
-                                        &req->macaddr) < 0) {
+        if (techdriver->applyBasicRules(req->binding->portdevname,
+                                        &req->binding->mac) < 0) {
             req->status = EINVAL;
             goto done;
         }
@@ -495,7 +491,7 @@ learnIPAddressThread(void *arg)
             }
 
             /* check whether VM's dev is still there */
-            if (virNetDevValidateConfig(req->ifname, NULL, req->ifindex) <= 0) {
+            if (virNetDevValidateConfig(req->binding->portdevname, NULL, req->ifindex) <= 0) {
                 virResetLastError();
                 req->status = ENODEV;
                 showError = false;
@@ -527,7 +523,7 @@ learnIPAddressThread(void *arg)
                 continue;
             }
 
-            if (virMacAddrCmpRaw(&req->macaddr, ether_hdr->ether_shost) == 0) {
+            if (virMacAddrCmpRaw(&req->binding->mac, ether_hdr->ether_shost) == 0) {
                 /* packets from the VM */
 
                 if (etherType == ETHERTYPE_IP &&
@@ -566,7 +562,7 @@ learnIPAddressThread(void *arg)
                     break;
                     }
                 }
-            } else if (virMacAddrCmpRaw(&req->macaddr,
+            } else if (virMacAddrCmpRaw(&req->binding->mac,
                                         ether_hdr->ether_dhost) == 0 ||
                        /* allow Broadcast replies from DHCP server */
                        virMacAddrIsBroadcastRaw(ether_hdr->ether_dhost)) {
@@ -596,7 +592,7 @@ learnIPAddressThread(void *arg)
                                         ((char *)udphdr + sizeof(udphdr));
                             if (dhcp->op == 2 /* BOOTREPLY */ &&
                                 virMacAddrCmpRaw(
-                                        &req->macaddr,
+                                        &req->binding->mac,
                                         &dhcp->chaddr[0]) == 0) {
                                 dhcp_opts_len = header.len -
                                     (ethHdrSize + iphdr->ihl * 4 +
@@ -640,26 +636,19 @@ learnIPAddressThread(void *arg)
          * Also it is safe to unlock interface here because we stopped
          * capturing and applied necessary rules on the interface, while
          * instantiating a new filter doesn't require a locked interface.*/
-        virNWFilterUnlockIface(req->ifname);
+        virNWFilterUnlockIface(req->binding->portdevname);
 
         if ((inetaddr = virSocketAddrFormat(&sa)) != NULL) {
-            virNWFilterBindingDef binding = {
-                .portdevname = req->ifname,
-                .linkdevname = req->linkdev,
-                .mac = req->macaddr,
-                .filter = req->filtername,
-                .filterparams = req->filterparams,
-            };
-            if (virNWFilterIPAddrMapAddIPAddr(req->ifname, inetaddr) < 0) {
+            if (virNWFilterIPAddrMapAddIPAddr(req->binding->portdevname, inetaddr) < 0) {
                 VIR_ERROR(_("Failed to add IP address %s to IP address "
-                          "cache for interface %s"), inetaddr, req->ifname);
+                          "cache for interface %s"), inetaddr, req->binding->portdevname);
             }
 
             ret = virNWFilterInstantiateFilterLate(req->driver,
-                                                   &binding,
+                                                   req->binding,
                                                    req->ifindex);
             VIR_DEBUG("Result from applying firewall rules on "
-                      "%s with IP addr %s : %d", req->ifname, inetaddr, ret);
+                      "%s with IP addr %s : %d", req->binding->portdevname, inetaddr, ret);
             VIR_FREE(inetaddr);
         }
     } else {
@@ -667,13 +656,13 @@ learnIPAddressThread(void *arg)
             virReportSystemError(req->status,
                                  _("encountered an error on interface %s "
                                    "index %d"),
-                                 req->ifname, req->ifindex);
+                                 req->binding->portdevname, req->ifindex);
 
-        techdriver->applyDropAllRules(req->ifname);
-        virNWFilterUnlockIface(req->ifname);
+        techdriver->applyDropAllRules(req->binding->portdevname);
+        virNWFilterUnlockIface(req->binding->portdevname);
     }
 
-    VIR_DEBUG("pcap thread terminating for interface %s", req->ifname);
+    VIR_DEBUG("pcap thread terminating for interface %s", req->binding->portdevname);
 
 
  err_no_lock:
@@ -706,19 +695,14 @@ learnIPAddressThread(void *arg)
  */
 int
 virNWFilterLearnIPAddress(virNWFilterTechDriverPtr techdriver,
-                          const char *ifname,
+                          virNWFilterBindingDefPtr binding,
                           int ifindex,
-                          const char *linkdev,
-                          const virMacAddr *macaddr,
-                          const char *filtername,
-                          virHashTablePtr filterparams,
                           virNWFilterDriverStatePtr driver,
                           enum howDetect howDetect)
 {
     int rc;
     virThread thread;
     virNWFilterIPAddrLearnReqPtr req = NULL;
-    virHashTablePtr ht = NULL;
 
     if (howDetect == 0)
         return -1;
@@ -734,37 +718,11 @@ virNWFilterLearnIPAddress(virNWFilterTechDriverPtr techdriver,
     if (VIR_ALLOC(req) < 0)
         goto err_no_req;
 
-    ht = virNWFilterHashTableCreate(0);
-    if (ht == NULL)
+    if (!(req->binding = virNWFilterBindingDefCopy(binding)))
         goto err_free_req;
 
-    if (virNWFilterHashTablePutAll(filterparams, ht) < 0)
-        goto err_free_ht;
-
-    if (VIR_STRDUP(req->filtername, filtername) < 0)
-        goto err_free_ht;
-
-    if (virStrcpyStatic(req->ifname, ifname) == NULL) {
-        virReportError(VIR_ERR_INTERNAL_ERROR,
-                       _("Destination buffer for ifname ('%s') "
-                         "not large enough"), ifname);
-        goto err_free_ht;
-    }
-
-    if (linkdev) {
-        if (virStrcpyStatic(req->linkdev, linkdev) == NULL) {
-            virReportError(VIR_ERR_INTERNAL_ERROR,
-                           _("Destination buffer for linkdev ('%s') "
-                             "not large enough"), linkdev);
-            goto err_free_ht;
-        }
-    }
-
     req->ifindex = ifindex;
-    virMacAddrSet(&req->macaddr, macaddr);
     req->driver = driver;
-    req->filterparams = ht;
-    ht = NULL;
     req->howDetect = howDetect;
     req->techdriver = techdriver;
 
@@ -783,8 +741,6 @@ virNWFilterLearnIPAddress(virNWFilterTechDriverPtr techdriver,
 
  err_dereg_req:
     virNWFilterDeregisterLearnReq(ifindex);
- err_free_ht:
-    virHashFree(ht);
  err_free_req:
     virNWFilterIPAddrLearnReqFree(req);
  err_no_req:
