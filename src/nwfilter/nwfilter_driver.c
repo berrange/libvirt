@@ -774,6 +774,75 @@ nwfilterBindingGetXMLDesc(virNWFilterBindingPtr binding,
 }
 
 
+static virNWFilterBindingPtr
+nwfilterBindingCreateXML(virConnectPtr conn,
+                         const char *xml,
+                         unsigned int flags)
+{
+    virNWFilterBindingObjPtr obj;
+    virNWFilterBindingDefPtr def;
+    virNWFilterBindingPtr ret = NULL;
+
+    virCheckFlags(0, NULL);
+
+    def = virNWFilterBindingDefParseString(xml);
+    if (!def)
+        return NULL;
+
+    obj = virNWFilterBindingObjListFindByPortDev(driver->bindings, def->portdevname);
+    if (obj) {
+        virReportError(VIR_ERR_INTERNAL_ERROR,
+                       _("Filter already present for NIC %s"), def->portdevname);
+        goto cleanup;
+    }
+
+    obj = virNWFilterBindingObjListAdd(driver->bindings,
+                                       def);
+    if (!obj)
+        goto cleanup;
+    def = NULL;
+
+    if (!(ret = virGetNWFilterBinding(conn, obj->def->portdevname, obj->def->filter)))
+        goto cleanup;
+
+    if (virNWFilterInstantiateFilter(driver, obj->def) < 0) {
+        virNWFilterBindingObjListRemove(driver->bindings, obj);
+        virObjectUnref(ret);
+        ret = NULL;
+    }
+
+ cleanup:
+    virNWFilterBindingDefFree(def);
+    virNWFilterBindingObjEndAPI(&obj);
+
+    return ret;
+}
+
+
+static int
+nwfilterBindingDelete(virNWFilterBindingPtr binding)
+{
+    virNWFilterBindingObjPtr obj;
+    int ret = -1;
+
+    obj = virNWFilterBindingObjListFindByPortDev(driver->bindings, binding->portdev);
+    if (!obj)
+        return -1;
+
+    if (virNWFilterBindingDeleteEnsureACL(binding->conn, obj->def) < 0)
+        goto cleanup;
+
+    virNWFilterTeardownFilter(obj->def);
+    virNWFilterBindingObjListRemove(driver->bindings, obj);
+
+    ret = 0;
+
+ cleanup:
+    virNWFilterBindingObjEndAPI(&obj);
+    return ret;
+}
+
+
 static virNWFilterDriver nwfilterDriver = {
     .name = "nwfilter",
     .connectNumOfNWFilters = nwfilterConnectNumOfNWFilters, /* 0.8.0 */
@@ -787,6 +856,8 @@ static virNWFilterDriver nwfilterDriver = {
     .nwfilterBindingLookupByPortDev = nwfilterBindingLookupByPortDev, /* 4.4.0 */
     .connectListAllNWFilterBindings = nwfilterConnectListAllNWFilterBindings, /* 4.4.0 */
     .nwfilterBindingGetXMLDesc = nwfilterBindingGetXMLDesc, /* 4.4.0 */
+    .nwfilterBindingCreateXML = nwfilterBindingCreateXML, /* 4.4.0 */
+    .nwfilterBindingDelete = nwfilterBindingDelete, /* 4.4.0 */
 };
 
 
