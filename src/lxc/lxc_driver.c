@@ -3867,7 +3867,8 @@ lxcDomainAttachDeviceNetLive(virConnectPtr conn,
      * network's pool of devices, or resolve bridge device name
      * to the one defined in the network definition.
      */
-    if (virDomainNetAllocateActualDevice(vm->def, net) < 0)
+    if (net->type == VIR_DOMAIN_NET_TYPE_NETWORK &&
+        virDomainNetAllocateActualDevice(vm->def, net) < 0)
         return -1;
 
     actualType = virDomainNetGetActualType(net);
@@ -4421,7 +4422,8 @@ lxcDomainDetachDeviceNetLive(virDomainObjPtr vm,
     ret = 0;
  cleanup:
     if (!ret) {
-        virDomainNetReleaseActualDevice(vm->def, detach);
+        if (detach->type == VIR_DOMAIN_NET_TYPE_NETWORK)
+            virDomainNetReleaseActualDevice(vm->def, detach);
         virDomainNetRemove(vm->def, detachidx);
         virDomainNetDefFree(detach);
     }

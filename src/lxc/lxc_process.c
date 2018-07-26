@@ -213,7 +213,8 @@ static void virLXCProcessCleanup(virLXCDriverPtr driver,
                                 iface->ifname));
             ignore_value(virNetDevVethDelete(iface->ifname));
         }
-        virDomainNetReleaseActualDevice(vm->def, iface);
+        if (iface->type == VIR_DOMAIN_NET_TYPE_NETWORK)
+            virDomainNetReleaseActualDevice(vm->def, iface);
     }
 
     virDomainConfVMNWFilterTeardown(vm);
@@ -547,6 +548,10 @@ static int virLXCProcessSetupInterfaces(virConnectPtr conn,
         if (virLXCProcessValidateInterface(net) < 0)
             goto cleanup;
 
+        if (net->type == VIR_DOMAIN_NET_TYPE_NETWORK &&
+            virDomainNetAllocateActualDevice(def, net) < 0)
+            goto cleanup;
+
         if (virDomainNetAllocateActualDevice(def, net) < 0)
             goto cleanup;
 
@@ -626,7 +631,8 @@ static int virLXCProcessSetupInterfaces(virConnectPtr conn,
                 ignore_value(virNetDevOpenvswitchRemovePort(
                                 virDomainNetGetActualBridgeName(iface),
                                 iface->ifname));
-            virDomainNetReleaseActualDevice(def, iface);
+            if (iface->type == VIR_DOMAIN_NET_TYPE_NETWORK)
+                virDomainNetReleaseActualDevice(def, iface);
         }
     }
     return ret;

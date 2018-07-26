@@ -30478,13 +30478,11 @@ int
 virDomainNetAllocateActualDevice(virDomainDefPtr dom,
                                  virDomainNetDefPtr iface)
 {
-    /* Just silently ignore if network driver isn't present. If something
-     * has tried to use a NIC with type=network, other code will already
-     * cause an error. This ensures type=bridge doesn't break when
-     * network driver is compiled out.
-     */
-    if (!netAllocate)
-        return 0;
+    if (!netAllocate) {
+        virReportError(VIR_ERR_NO_SUPPORT, "%s",
+                       _("Virtual networking driver is not available"));
+        return -1;
+    }
 
     return netAllocate(dom, iface);
 }

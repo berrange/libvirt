@@ -4452,8 +4452,11 @@ networkAllocateActualDevice(virDomainDefPtr dom,
     size_t i;
     int ret = -1;
 
-    if (iface->type != VIR_DOMAIN_NET_TYPE_NETWORK)
-        goto validate;
+    if (iface->type != VIR_DOMAIN_NET_TYPE_NETWORK) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("Expected a interface for a virtual network"));
+        goto error;
+    }
 
     virDomainActualNetDefFree(iface->data.network.actual);
     iface->data.network.actual = NULL;
@@ -4772,7 +4775,6 @@ networkAllocateActualDevice(virDomainDefPtr dom,
     if (virNetDevVPortProfileCheckComplete(virtport, true) < 0)
         goto error;
 
- validate:
     /* make sure that everything now specified for the device is
      * actually supported on this type of network. NB: network,
      * netdev, and iface->data.network.actual may all be NULL.
@@ -4875,8 +4877,11 @@ networkNotifyActualDevice(virDomainDefPtr dom,
     size_t i;
     char *master = NULL;
 
-    if (iface->type != VIR_DOMAIN_NET_TYPE_NETWORK)
-        return;
+    if (iface->type != VIR_DOMAIN_NET_TYPE_NETWORK) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("Expected a interface for a virtual network"));
+        goto error;
+    }
 
     obj = virNetworkObjFindByName(driver->networks, iface->data.network.name);
     if (!obj) {
@@ -5108,8 +5113,11 @@ networkReleaseActualDevice(virDomainDefPtr dom,
     size_t i;
     int ret = -1;
 
-    if (iface->type != VIR_DOMAIN_NET_TYPE_NETWORK)
-        return 0;
+    if (iface->type != VIR_DOMAIN_NET_TYPE_NETWORK) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("Expected a interface for a virtual network"));
+        goto error;
+    }
 
     obj = virNetworkObjFindByName(driver->networks, iface->data.network.name);
     if (!obj) {
