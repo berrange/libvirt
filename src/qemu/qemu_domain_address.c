@@ -1436,7 +1436,7 @@ qemuDomainCollectPCIAddress(virDomainDefPtr def ATTRIBUTE_UNUSED,
 
     if (!virDeviceInfoPCIAddressIsPresent(info) ||
         ((device->type == VIR_DOMAIN_DEVICE_HOSTDEV) &&
-         (device->data.hostdev->parent.type != VIR_DOMAIN_DEVICE_NONE))) {
+         device->data.hostdev->parent)) {
         /* If a hostdev has a parent, its info will be a part of the
          * parent, and will have its address collected during the scan
          * of the parent's device type.
@@ -1531,7 +1531,7 @@ qemuDomainCollectPCIAddressExtension(virDomainDefPtr def ATTRIBUTE_UNUSED,
 
     if (!virDeviceInfoPCIAddressExtensionIsPresent(info) ||
         ((device->type == VIR_DOMAIN_DEVICE_HOSTDEV) &&
-         (device->data.hostdev->parent.type != VIR_DOMAIN_DEVICE_NONE))) {
+         device->data.hostdev->parent)) {
         /* If a hostdev has a parent, its info will be a part of the
          * parent, and will have its address collected during the scan
          * of the parent's device type.

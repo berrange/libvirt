@@ -4601,11 +4601,9 @@ qemuDomainRemoveHostDevice(virQEMUDriverPtr driver,
     event = virDomainEventDeviceRemovedNewFromObj(vm, hostdev->info->alias);
     virObjectEventStateQueue(driver->domainEventState, event);
 
-    if (hostdev->parent.type == VIR_DOMAIN_DEVICE_NET) {
-        net = hostdev->parent.data.net;
-
+    if (hostdev->parent) {
         for (i = 0; i < vm->def->nnets; i++) {
-            if (vm->def->nets[i] == net) {
+            if (vm->def->nets[i] == hostdev->parent) {
                 virDomainNetRemove(vm->def, i);
                 break;
             }
@@ -5797,8 +5795,8 @@ int qemuDomainDetachHostDevice(virQEMUDriverPtr driver,
     /* If this is a network hostdev, we need to use the higher-level detach
      * function so that mac address / virtualport are reset
      */
-    if (detach->parent.type == VIR_DOMAIN_DEVICE_NET)
-        return qemuDomainDetachNetDevice(driver, vm, &detach->parent, async);
+    if (detach->parent)
+        return qemuDomainDetachNetDevice(driver, vm, detach->parent, async);
     else
         return qemuDomainDetachThisHostDevice(driver, vm, detach, async);
 }
@@ -5978,14 +5976,14 @@ qemuDomainDetachRedirdevDevice(virQEMUDriverPtr driver,
 int
 qemuDomainDetachNetDevice(virQEMUDriverPtr driver,
                           virDomainObjPtr vm,
-                          virDomainDeviceDefPtr dev,
+                          virDomainNetDefPtr net,
                           bool async)
 {
     int detachidx, ret = -1;
     virDomainNetDefPtr detach = NULL;
     qemuDomainObjPrivatePtr priv = vm->privateData;
 
-    if ((detachidx = virDomainNetFindIdx(vm->def, dev->data.net)) < 0)
+    if ((detachidx = virDomainNetFindIdx(vm->def, net)) < 0)
         goto cleanup;
 
     detach = vm->def->nets[detachidx];

@@ -8023,7 +8023,7 @@ qemuDomainDetachDeviceLive(virDomainObjPtr vm,
         ret = qemuDomainDetachLease(driver, vm, dev->data.lease);
         break;
     case VIR_DOMAIN_DEVICE_NET:
-        ret = qemuDomainDetachNetDevice(driver, vm, dev, async);
+        ret = qemuDomainDetachNetDevice(driver, vm, dev->data.net, async);
         break;
     case VIR_DOMAIN_DEVICE_HOSTDEV:
         ret = qemuDomainDetachHostDevice(driver, vm, dev, async);

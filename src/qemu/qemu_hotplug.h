@@ -109,7 +109,7 @@ int qemuDomainDetachControllerDevice(virQEMUDriverPtr driver,
                                      bool async);
 int qemuDomainDetachNetDevice(virQEMUDriverPtr driver,
                               virDomainObjPtr vm,
-                              virDomainDeviceDefPtr dev,
+                              virDomainNetDefPtr net,
                               bool async);
 int qemuDomainDetachHostDevice(virQEMUDriverPtr driver,
                                virDomainObjPtr vm,
