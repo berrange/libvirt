@@ -182,8 +182,8 @@ int cpuMapLoad(const char *arch,
     int ret = -1;
     char *mapfile;
 
-    if (!(mapfile = virFileFindResource("cpu_map.xml",
-                                        abs_topsrcdir "/src/cpu",
+    if (!(mapfile = virFileFindResource("cpu_map/index.xml",
+                                        abs_topsrcdir "/src",
                                         PKGDATADIR)))
         return -1;
 
