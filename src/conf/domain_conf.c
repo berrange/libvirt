@@ -39,6 +39,7 @@
 #include "virbuffer.h"
 #include "virlog.h"
 #include "nwfilter_conf.h"
+#include "virnetworkportdef.h"
 #include "storage_conf.h"
 #include "virstoragefile.h"
 #include "virfile.h"
@@ -30449,6 +30450,257 @@ virDomainNetTypeSharesHostView(const virDomainNetDef *net)
         break;
     }
     return false;
+}
+
+virNetworkPortDefPtr
+virDomainNetDefToNetworkPort(virDomainDefPtr dom,
+                             virDomainNetDefPtr iface)
+{
+    virNetworkPortDefPtr port;
+
+    if (iface->type != VIR_DOMAIN_NET_TYPE_NETWORK) {
+        virReportError(VIR_ERR_INTERNAL_ERROR,
+                       _("Expected an interface of type 'network' not '%s'"),
+                       virDomainNetTypeToString(iface->type));
+        return NULL;
+    }
+
+    if (VIR_ALLOC(port) < 0)
+        return NULL;
+
+    virUUIDGenerate(port->uuid);
+
+    memcpy(port->owneruuid, dom->uuid, VIR_UUID_BUFLEN);
+    if (VIR_STRDUP(port->ownername, dom->name) < 0)
+        goto error;
+
+    if (VIR_STRDUP(port->group, iface->data.network.portgroup) < 0)
+        goto error;
+
+    memcpy(&port->mac, &iface->mac, VIR_MAC_BUFLEN);
+
+    if (virNetDevVPortProfileCopy(&port->virtPortProfile, iface->virtPortProfile) < 0)
+        goto error;
+
+    if (virNetDevBandwidthCopy(&port->bandwidth, iface->bandwidth) < 0)
+        goto error;
+
+    if (virNetDevVlanCopy(&port->vlan, &iface->vlan) < 0)
+        goto error;
+
+    port->trustGuestRxFilters = iface->trustGuestRxFilters;
+
+    return port;
+
+ error:
+    virNetworkPortDefFree(port);
+    return NULL;
+}
+
+int
+virDomainNetDefActualFromNetworkPort(virDomainNetDefPtr iface,
+                                     virNetworkPortDefPtr port)
+{
+    virDomainActualNetDefPtr actual = NULL;
+
+    if (iface->type != VIR_DOMAIN_NET_TYPE_NETWORK) {
+        virReportError(VIR_ERR_INTERNAL_ERROR,
+                       _("Expected an interface of type 'network' not '%s'"),
+                       virDomainNetTypeToString(iface->type));
+        return -1;
+    }
+
+    if (VIR_ALLOC(actual) < 0)
+        return -1;
+
+    switch ((virNetworkPortType)port->type) {
+    case VIR_NETWORK_PORT_TYPE_BRIDGE:
+        if (VIR_STRDUP(actual->data.bridge.brname,
+                       port->data.bridge.brname) < 0)
+            goto error;
+        actual->data.bridge.macTableManager = port->data.bridge.macTableManager;
+        break;
+
+    case VIR_NETWORK_PORT_TYPE_DIRECT:
+        if (VIR_STRDUP(actual->data.direct.linkdev,
+                       port->data.direct.linkdev) < 0)
+            goto error;
+        actual->data.direct.mode = port->data.direct.mode;
+        break;
+
+    case VIR_NETWORK_PORT_TYPE_HOSTDEV_PCI:
+        actual->data.hostdev.def.parent = iface;
+        actual->data.hostdev.def.info = &iface->info;
+        actual->data.hostdev.def.mode = VIR_DOMAIN_HOSTDEV_MODE_SUBSYS;
+        actual->data.hostdev.def.managed = port->data.hostdevpci.managed;
+        actual->data.hostdev.def.source.subsys.type = VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_PCI;
+        actual->data.hostdev.def.source.subsys.u.pci.addr = port->data.hostdevpci.addr;
+        switch ((virNetworkForwardDriverNameType)port->data.hostdevpci.driver) {
+        case VIR_NETWORK_FORWARD_DRIVER_NAME_DEFAULT:
+            actual->data.hostdev.def.source.subsys.u.pci.backend =
+                VIR_DOMAIN_HOSTDEV_PCI_BACKEND_DEFAULT;
+            break;
+
+        case VIR_NETWORK_FORWARD_DRIVER_NAME_KVM:
+            actual->data.hostdev.def.source.subsys.u.pci.backend =
+                VIR_DOMAIN_HOSTDEV_PCI_BACKEND_KVM;
+            break;
+
+        case VIR_NETWORK_FORWARD_DRIVER_NAME_VFIO:
+            actual->data.hostdev.def.source.subsys.u.pci.backend =
+                VIR_DOMAIN_HOSTDEV_PCI_BACKEND_VFIO;
+            break;
+
+        case VIR_NETWORK_FORWARD_DRIVER_NAME_LAST:
+        default:
+            virReportEnumRangeError(virNetworkForwardDriverNameType,
+                                    port->data.hostdevpci.driver);
+            goto error;
+        }
+
+        break;
+
+    case VIR_NETWORK_PORT_TYPE_LAST:
+    default:
+        virReportEnumRangeError(virNetworkPortType, port->type);
+        goto error;
+    }
+
+    if (virNetDevVPortProfileCopy(&actual->virtPortProfile, port->virtPortProfile) < 0)
+        goto error;
+
+    if (virNetDevBandwidthCopy(&actual->bandwidth, port->bandwidth) < 0)
+        goto error;
+
+    if (virNetDevVlanCopy(&actual->vlan, &port->vlan) < 0)
+        goto error;
+
+    actual->class_id = port->class_id;
+    actual->trustGuestRxFilters = port->trustGuestRxFilters;
+
+    virDomainActualNetDefFree(iface->data.network.actual);
+    iface->data.network.actual = actual;
+
+    return 0;
+
+ error:
+    virDomainActualNetDefFree(actual);
+    return -1;
+}
+
+virNetworkPortDefPtr
+virDomainNetDefActualToNetworkPort(virDomainDefPtr dom,
+                                   virDomainNetDefPtr iface)
+{
+    virDomainActualNetDefPtr actual;
+    virNetworkPortDefPtr port;
+
+    if (!iface->data.network.actual) {
+        virReportError(VIR_ERR_INTERNAL_ERROR,
+                       _("Missing actual data for interface '%s'"),
+                       iface->ifname);
+        return NULL;
+    }
+
+    actual = iface->data.network.actual;
+
+    if (iface->type != VIR_DOMAIN_NET_TYPE_NETWORK) {
+        virReportError(VIR_ERR_INTERNAL_ERROR,
+                       _("Expected an interface of type 'network' not '%s'"),
+                       virDomainNetTypeToString(iface->type));
+        return NULL;
+    }
+
+    if (VIR_ALLOC(port) < 0)
+        return NULL;
+
+    /* Bad - we need to preserve original port uuid */
+    virUUIDGenerate(port->uuid);
+
+    memcpy(port->owneruuid, dom->uuid, VIR_UUID_BUFLEN);
+    if (VIR_STRDUP(port->ownername, dom->name) < 0)
+        goto error;
+
+    if (VIR_STRDUP(port->group, iface->data.network.portgroup) < 0)
+        goto error;
+
+    memcpy(&port->mac, &iface->mac, VIR_MAC_BUFLEN);
+
+    switch ((virNetworkPortType)port->type) {
+    case VIR_NETWORK_PORT_TYPE_BRIDGE:
+        if (VIR_STRDUP(port->data.bridge.brname,
+                       actual->data.bridge.brname) < 0)
+            goto error;
+        port->data.bridge.macTableManager = actual->data.bridge.macTableManager;
+        break;
+
+    case VIR_NETWORK_PORT_TYPE_DIRECT:
+        if (VIR_STRDUP(port->data.direct.linkdev,
+                       actual->data.direct.linkdev) < 0)
+            goto error;
+        port->data.direct.mode = actual->data.direct.mode;
+        break;
+
+    case VIR_NETWORK_PORT_TYPE_HOSTDEV_PCI:
+        if (actual->data.hostdev.def.mode != VIR_DOMAIN_HOSTDEV_MODE_SUBSYS ||
+            actual->data.hostdev.def.source.subsys.type != VIR_DOMAIN_HOSTDEV_SUBSYS_TYPE_PCI) {
+            virReportError(VIR_ERR_INTERNAL_ERROR,
+                           _("Actual interface '%s' hostdev was not a PCI device"),
+                           iface->ifname);
+            goto error;
+        }
+        port->data.hostdevpci.managed = actual->data.hostdev.def.managed;
+        port->data.hostdevpci.addr = actual->data.hostdev.def.source.subsys.u.pci.addr;
+        switch ((virDomainHostdevSubsysPCIBackendType)actual->data.hostdev.def.source.subsys.u.pci.backend) {
+        case VIR_DOMAIN_HOSTDEV_PCI_BACKEND_DEFAULT:
+            port->data.hostdevpci.driver = VIR_NETWORK_FORWARD_DRIVER_NAME_DEFAULT;
+            break;
+
+        case VIR_DOMAIN_HOSTDEV_PCI_BACKEND_KVM:
+            port->data.hostdevpci.driver = VIR_NETWORK_FORWARD_DRIVER_NAME_KVM;
+            break;
+
+        case VIR_DOMAIN_HOSTDEV_PCI_BACKEND_VFIO:
+            port->data.hostdevpci.driver = VIR_NETWORK_FORWARD_DRIVER_NAME_VFIO;
+            break;
+
+        case VIR_DOMAIN_HOSTDEV_PCI_BACKEND_XEN:
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                           _("Unexpected PCI backend 'xen'"));
+            break;
+
+        case VIR_DOMAIN_HOSTDEV_PCI_BACKEND_TYPE_LAST:
+        default:
+            virReportEnumRangeError(virDomainHostdevSubsysPCIBackendType,
+                                    actual->data.hostdev.def.source.subsys.u.pci.backend);
+            goto error;
+        }
+
+        break;
+
+    case VIR_NETWORK_PORT_TYPE_LAST:
+    default:
+        virReportEnumRangeError(virNetworkPortType, port->type);
+        goto error;
+    }
+
+    if (virNetDevVPortProfileCopy(&port->virtPortProfile, actual->virtPortProfile) < 0)
+        goto error;
+
+    if (virNetDevBandwidthCopy(&port->bandwidth, actual->bandwidth) < 0)
+        goto error;
+
+    if (virNetDevVlanCopy(&port->vlan, &actual->vlan) < 0)
+        goto error;
+
+    port->class_id = actual->class_id;
+    port->trustGuestRxFilters = actual->trustGuestRxFilters;
+
+    return port;
+
+ error:
+    virNetworkPortDefFree(port);
+    return NULL;
 }
 
 static virDomainNetAllocateActualDeviceImpl netAllocate;
