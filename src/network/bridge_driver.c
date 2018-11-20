@@ -3374,7 +3374,12 @@ networkValidate(virNetworkDriverStatePtr driver,
                            virNetworkForwardTypeToString(def->forward.type));
             return -1;
         }
-        if (def->bandwidth) {
+
+        bandwidthAllowed = (
+            def->forward.type == VIR_NETWORK_FORWARD_BRIDGE &&
+            def->bridge != NULL);
+
+        if (!bandwidthAllowed) {
             virReportError(VIR_ERR_CONFIG_UNSUPPORTED,
                            _("Unsupported network-wide <bandwidth> element "
                              "in network %s with forward mode='%s'"),
@@ -3382,7 +3387,6 @@ networkValidate(virNetworkDriverStatePtr driver,
                            virNetworkForwardTypeToString(def->forward.type));
             return -1;
         }
-        bandwidthAllowed = false;
         break;
 
     case VIR_NETWORK_FORWARD_LAST:
@@ -4659,6 +4663,9 @@ networkAllocateActualDevice(virNetworkPtr net,
                     goto error;
                 }
             }
+
+            if (networkPlugBandwidth(obj, iface) < 0)
+                goto error;
             break;
         }
 
@@ -5143,6 +5150,11 @@ networkReleaseActualDevice(virNetworkPtr net,
         break;
 
     case VIR_NETWORK_FORWARD_BRIDGE:
+        if (iface->data.network.actual &&
+            actualType == VIR_DOMAIN_NET_TYPE_BRIDGE &&
+            networkUnplugBandwidth(obj, iface) < 0)
+            goto error;
+        break;
     case VIR_NETWORK_FORWARD_PRIVATE:
     case VIR_NETWORK_FORWARD_VEPA:
     case VIR_NETWORK_FORWARD_PASSTHROUGH:
