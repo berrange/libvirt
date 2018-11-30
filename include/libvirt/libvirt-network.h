@@ -46,6 +46,22 @@ typedef struct _virNetwork virNetwork;
  */
 typedef virNetwork *virNetworkPtr;
 
+/**
+ * virNetworkPort:
+ *
+ * a virNetworkPort is a private structure representing a virtual network
+ * port
+ */
+typedef struct _virNetworkPort virNetworkPort;
+
+/**
+ * virNetworkPortPtr:
+ *
+ * a virNetworkPortPtr is pointer to a virNetworkPort private structure,
+ * this is the type used to reference a virtual network port in the API.
+ */
+typedef virNetworkPort *virNetworkPortPtr;
+
 /*
  * Get connection from network.
  */
@@ -332,5 +348,34 @@ int virConnectNetworkEventRegisterAny(virConnectPtr conn,
 
 int virConnectNetworkEventDeregisterAny(virConnectPtr conn,
                                         int callbackID);
+
+virNetworkPortPtr virNetworkPortLookupByUUID(virNetworkPtr net,
+                                             const unsigned char *uuid);
+
+virNetworkPortPtr virNetworkPortLookupByUUIDString(virNetworkPtr net,
+                                                   const char *uuidstr);
+
+virNetworkPortPtr virNetworkPortCreateXML(virNetworkPtr net,
+                                          const char *xmldesc,
+                                          unsigned int flags);
+
+virNetworkPtr virNetworkPortGetNetwork(virNetworkPortPtr port);
+
+char *virNetworkPortGetXMLDesc(virNetworkPortPtr port,
+                               unsigned int flags);
+
+int virNetworkPortGetUUID(virNetworkPortPtr port,
+                          unsigned char *uuid);
+int virNetworkPortGetUUIDString(virNetworkPortPtr port,
+                                char *buf);
+
+int virNetworkPortDelete(virNetworkPortPtr port,
+                         unsigned int flags);
+
+int virNetworkListAllPorts(virNetworkPtr network,
+                           virNetworkPortPtr **ports,
+                           unsigned int flags);
+
+int virNetworkPortFree(virNetworkPortPtr port);
 
 #endif /* LIBVIRT_NETWORK_H */

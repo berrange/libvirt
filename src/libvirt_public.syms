@@ -814,4 +814,18 @@ LIBVIRT_4.10.0 {
         virDomainSetIOThreadParams;
 } LIBVIRT_4.5.0;
 
+LIBVIRT_5.0.0 {
+    global:
+        virNetworkListAllPorts;
+        virNetworkPortLookupByUUID;
+        virNetworkPortLookupByUUIDString;
+        virNetworkPortCreateXML;
+        virNetworkPortGetNetwork;
+        virNetworkPortGetXMLDesc;
+        virNetworkPortGetUUID;
+        virNetworkPortGetUUIDString;
+        virNetworkPortDelete;
+        virNetworkPortFree;
+} LIBVIRT_4.10.0;
+
 # .... define new API here using predicted next version number ....

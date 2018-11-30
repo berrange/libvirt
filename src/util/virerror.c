@@ -1507,6 +1507,24 @@ virErrorMsg(virErrorNumber error, const char *info)
             else
                 errmsg = _("Network filter binding not found: %s");
             break;
+        case VIR_ERR_INVALID_NETWORK_PORT:
+            if (info == NULL)
+                errmsg = _("invalid network port pointer in");
+            else
+                errmsg = _("invalid network port pointer in %s");
+            break;
+        case VIR_ERR_NETWORK_PORT_EXIST:
+            if (info == NULL)
+                errmsg = _("this network port exists already");
+            else
+                errmsg = _("network port %s exists already");
+            break;
+        case VIR_ERR_NO_NETWORK_PORT:
+            if (info == NULL)
+                errmsg = _("Network port not found");
+            else
+                errmsg = _("Network port not found: %s");
+            break;
     }
     return errmsg;
 }

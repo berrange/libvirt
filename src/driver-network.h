@@ -118,6 +118,42 @@ typedef int
                               virNetworkDHCPLeasePtr **leases,
                               unsigned int flags);
 
+typedef virNetworkPortPtr
+(*virDrvNetworkPortLookupByUUID)(virNetworkPtr net,
+                                 const unsigned char *uuid);
+
+typedef virNetworkPortPtr
+(*virDrvNetworkPortLookupByUUIDString)(virNetworkPtr net,
+                                       const char *uuidstr);
+
+typedef virNetworkPortPtr
+(*virDrvNetworkPortCreateXML)(virNetworkPtr net,
+                              const char *xmldesc,
+                              unsigned int flags);
+
+typedef virNetworkPtr
+(*virDrvNetworkPortGetNetwork)(virNetworkPortPtr port);
+
+typedef char *
+(*virDrvNetworkPortGetXMLDesc)(virNetworkPortPtr port,
+                               unsigned int flags);
+
+typedef int
+(*virDrvNetworkPortGetUUID)(virNetworkPortPtr port,
+                            unsigned char *uuid);
+typedef int
+(*virDrvNetworkPortGetUUIDString)(virNetworkPortPtr port,
+                                  char *buf);
+
+typedef int
+(*virDrvNetworkPortDelete)(virNetworkPortPtr port,
+                           unsigned int flags);
+
+typedef int
+(*virDrvNetworkListAllPorts)(virNetworkPtr network,
+                             virNetworkPortPtr **ports,
+                             unsigned int flags);
+
 typedef struct _virNetworkDriver virNetworkDriver;
 typedef virNetworkDriver *virNetworkDriverPtr;
 
@@ -151,6 +187,12 @@ struct _virNetworkDriver {
     virDrvNetworkIsActive networkIsActive;
     virDrvNetworkIsPersistent networkIsPersistent;
     virDrvNetworkGetDHCPLeases networkGetDHCPLeases;
+    virDrvNetworkPortLookupByUUID networkPortLookupByUUID;
+    virDrvNetworkPortCreateXML networkPortCreateXML;
+    virDrvNetworkPortGetXMLDesc networkPortGetXMLDesc;
+    virDrvNetworkPortGetUUID networkPortGetUUID;
+    virDrvNetworkPortDelete networkPortDelete;
+    virDrvNetworkListAllPorts networkListAllPorts;
 };
 
 
