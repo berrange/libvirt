@@ -74,6 +74,9 @@ const REMOTE_MIGRATE_COOKIE_MAX = 4194304;
 /* Upper limit on lists of networks. */
 const REMOTE_NETWORK_LIST_MAX = 16384;
 
+/* Upper limit on lists of network ports. */
+const REMOTE_NETWORK_PORT_LIST_MAX = 16384;
+
 /* Upper limit on lists of interfaces. */
 const REMOTE_INTERFACE_LIST_MAX = 16384;
 
@@ -279,6 +282,11 @@ struct remote_nonnull_network {
     remote_uuid uuid;
 };
 
+struct remote_nonnull_network_port {
+    remote_nonnull_network net;
+    remote_uuid uuid;
+};
+
 /* A network filter which may not be NULL. */
 struct remote_nonnull_nwfilter {
     remote_nonnull_string name;
@@ -331,6 +339,7 @@ struct remote_nonnull_domain_snapshot {
 /* A domain or network which may be NULL. */
 typedef remote_nonnull_domain *remote_domain;
 typedef remote_nonnull_network *remote_network;
+typedef remote_nonnull_network_port *remote_network_port;
 typedef remote_nonnull_nwfilter *remote_nwfilter;
 typedef remote_nonnull_nwfilter_binding *remote_nwfilter_binding;
 typedef remote_nonnull_storage_pool *remote_storage_pool;
@@ -3565,6 +3574,51 @@ struct remote_connect_list_all_nwfilter_bindings_ret { /* insert@1 */
     unsigned int ret;
 };
 
+struct remote_network_list_all_ports_args {
+    remote_nonnull_network network;
+    int need_results;
+    unsigned int flags;
+};
+
+struct remote_network_list_all_ports_ret { /* insert@1 */
+    remote_nonnull_network_port ports<REMOTE_NETWORK_PORT_LIST_MAX>;
+    unsigned int ret;
+};
+
+struct remote_network_port_lookup_by_uuid_args {
+    remote_nonnull_network network;
+    remote_uuid uuid;
+};
+
+struct remote_network_port_lookup_by_uuid_ret {
+    remote_nonnull_network_port port;
+};
+
+struct remote_network_port_create_xml_args {
+    remote_nonnull_network network;
+    remote_nonnull_string xml;
+    unsigned int flags;
+};
+
+struct remote_network_port_create_xml_ret {
+    remote_nonnull_network_port port;
+};
+
+struct remote_network_port_get_xml_desc_args {
+    remote_nonnull_network_port port;
+    unsigned int flags;
+};
+
+struct remote_network_port_get_xml_desc_ret {
+    remote_nonnull_string xml;
+};
+
+struct remote_network_port_delete_args {
+    remote_nonnull_network_port port;
+    unsigned int flags;
+};
+
+
 /*----- Protocol. -----*/
 
 /* Define the program number, protocol version and procedure numbers here. */
@@ -6328,6 +6382,39 @@ enum remote_procedure {
      * @acl: domain:save:!VIR_DOMAIN_AFFECT_CONFIG|VIR_DOMAIN_AFFECT_LIVE
      * @acl: domain:save:VIR_DOMAIN_AFFECT_CONFIG
      */
-    REMOTE_PROC_DOMAIN_SET_IOTHREAD_PARAMS = 402
+    REMOTE_PROC_DOMAIN_SET_IOTHREAD_PARAMS = 402,
+
+    /**
+     * @generate: both
+     * @priority: high
+     * @acl: network:search_ports
+     * @aclfilter: network_port:getattr
+     */
+    REMOTE_PROC_NETWORK_LIST_ALL_PORTS = 403,
+
+    /**
+     * @generate: both
+     * @priority: high
+     * @acl: network_port:getattr
+     */
+    REMOTE_PROC_NETWORK_PORT_LOOKUP_BY_UUID = 404,
+
+    /**
+     * @generate: both
+     * @acl: network_port:create
+     */
+    REMOTE_PROC_NETWORK_PORT_CREATE_XML = 405,
+
+    /**
+     * @generate: both
+     * @acl: network_port:read
+     */
+    REMOTE_PROC_NETWORK_PORT_GET_XML_DESC = 406,
+
+    /**
+     * @generate: both
+     * @acl: network_port:delete
+     */
+    REMOTE_PROC_NETWORK_PORT_DELETE = 407
 
 };

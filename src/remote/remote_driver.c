@@ -138,6 +138,7 @@ static int remoteAuthPolkit(virConnectPtr conn, struct private_data *priv,
 
 static virDomainPtr get_nonnull_domain(virConnectPtr conn, remote_nonnull_domain domain);
 static virNetworkPtr get_nonnull_network(virConnectPtr conn, remote_nonnull_network network);
+static virNetworkPortPtr get_nonnull_network_port(virConnectPtr conn, remote_nonnull_network_port port);
 static virNWFilterPtr get_nonnull_nwfilter(virConnectPtr conn, remote_nonnull_nwfilter nwfilter);
 static virNWFilterBindingPtr get_nonnull_nwfilter_binding(virConnectPtr conn, remote_nonnull_nwfilter_binding binding);
 static virInterfacePtr get_nonnull_interface(virConnectPtr conn, remote_nonnull_interface iface);
@@ -148,6 +149,7 @@ static virSecretPtr get_nonnull_secret(virConnectPtr conn, remote_nonnull_secret
 static virDomainSnapshotPtr get_nonnull_domain_snapshot(virDomainPtr domain, remote_nonnull_domain_snapshot snapshot);
 static void make_nonnull_domain(remote_nonnull_domain *dom_dst, virDomainPtr dom_src);
 static void make_nonnull_network(remote_nonnull_network *net_dst, virNetworkPtr net_src);
+static void make_nonnull_network_port(remote_nonnull_network_port *port_dst, virNetworkPortPtr port_src);
 static void make_nonnull_interface(remote_nonnull_interface *interface_dst, virInterfacePtr interface_src);
 static void make_nonnull_storage_pool(remote_nonnull_storage_pool *pool_dst, virStoragePoolPtr vol_src);
 static void make_nonnull_storage_vol(remote_nonnull_storage_vol *vol_dst, virStorageVolPtr vol_src);
@@ -8168,6 +8170,19 @@ get_nonnull_network(virConnectPtr conn, remote_nonnull_network network)
     return virGetNetwork(conn, network.name, BAD_CAST network.uuid);
 }
 
+static virNetworkPortPtr
+get_nonnull_network_port(virConnectPtr conn, remote_nonnull_network_port port)
+{
+    virNetworkPortPtr ret;
+    virNetworkPtr net;
+    net = virGetNetwork(conn, port.net.name, BAD_CAST port.net.uuid);
+    if (!net)
+        return NULL;
+    ret = virGetNetworkPort(net, BAD_CAST port.uuid);
+    virObjectUnref(net);
+    return ret;
+}
+
 static virInterfacePtr
 get_nonnull_interface(virConnectPtr conn, remote_nonnull_interface iface)
 {
@@ -8233,6 +8248,14 @@ make_nonnull_network(remote_nonnull_network *net_dst, virNetworkPtr net_src)
 {
     net_dst->name = net_src->name;
     memcpy(net_dst->uuid, net_src->uuid, VIR_UUID_BUFLEN);
+}
+
+static void
+make_nonnull_network_port(remote_nonnull_network_port *port_dst, virNetworkPortPtr port_src)
+{
+    port_dst->net.name = port_src->net->name;
+    memcpy(port_dst->net.uuid, port_src->net->uuid, VIR_UUID_BUFLEN);
+    memcpy(port_dst->uuid, port_src->uuid, VIR_UUID_BUFLEN);
 }
 
 static void
@@ -8561,6 +8584,11 @@ static virNetworkDriver network_driver = {
     .networkIsActive = remoteNetworkIsActive, /* 0.7.3 */
     .networkIsPersistent = remoteNetworkIsPersistent, /* 0.7.3 */
     .networkGetDHCPLeases = remoteNetworkGetDHCPLeases, /* 1.2.6 */
+    .networkListAllPorts = remoteNetworkListAllPorts, /* 5.0.0 */
+    .networkPortLookupByUUID = remoteNetworkPortLookupByUUID, /* 5.0.0 */
+    .networkPortCreateXML = remoteNetworkPortCreateXML, /* 5.0.0 */
+    .networkPortGetXMLDesc = remoteNetworkPortGetXMLDesc, /* 5.0.0 */
+    .networkPortDelete = remoteNetworkPortDelete, /* 5.0.0 */
 };
 
 static virInterfaceDriver interface_driver = {
