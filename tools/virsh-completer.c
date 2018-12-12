@@ -22,6 +22,7 @@
 
 #include "virsh-completer.h"
 #include "virsh-domain.h"
+#include "virsh-network.h"
 #include "virsh.h"
 #include "virsh-pool.h"
 #include "virsh-nodedev.h"
@@ -376,6 +377,56 @@ virshNetworkNameCompleter(vshControl *ctl,
         virNetworkFree(nets[i]);
     VIR_FREE(nets);
     for (i = 0; i < nnets; i++)
+        VIR_FREE(ret[i]);
+    VIR_FREE(ret);
+    return NULL;
+}
+
+
+char **
+virshNetworkPortUUIDCompleter(vshControl *ctl,
+                              const vshCmd *cmd ATTRIBUTE_UNUSED,
+                              unsigned int flags)
+{
+    virshControlPtr priv = ctl->privData;
+    virNetworkPtr net = NULL;
+    virNetworkPortPtr *ports = NULL;
+    int nports = 0;
+    size_t i = 0;
+    char **ret = NULL;
+
+    virCheckFlags(0, NULL);
+
+    if (!priv->conn || virConnectIsAlive(priv->conn) <= 0)
+        return NULL;
+
+    if (!(net = virshCommandOptNetwork(ctl, cmd, NULL)))
+        return false;
+
+    if ((nports = virNetworkListAllPorts(net, &ports, flags)) < 0)
+        return NULL;
+
+    if (VIR_ALLOC_N(ret, nports + 1) < 0)
+        goto error;
+
+    for (i = 0; i < nports; i++) {
+        char uuid[VIR_UUID_STRING_BUFLEN];
+
+        if (virNetworkPortGetUUIDString(ports[i], uuid) < 0 ||
+            VIR_STRDUP(ret[i], uuid) < 0)
+            goto error;
+
+        virNetworkPortFree(ports[i]);
+    }
+    VIR_FREE(ports);
+
+    return ret;
+
+ error:
+    for (; i < nports; i++)
+        virNetworkPortFree(ports[i]);
+    VIR_FREE(ports);
+    for (i = 0; i < nports; i++)
         VIR_FREE(ret[i]);
     VIR_FREE(ret);
     return NULL;

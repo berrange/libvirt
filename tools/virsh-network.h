@@ -32,6 +32,11 @@ virNetworkPtr
 virshCommandOptNetworkBy(vshControl *ctl, const vshCmd *cmd,
                          const char **name, unsigned int flags);
 
+virNetworkPortPtr
+virshCommandOptNetworkPort(vshControl *ctl, const vshCmd *cmd,
+                           virNetworkPtr net,
+                           const char **name, unsigned int flags);
+
 /* default is lookup by Name and UUID */
 # define virshCommandOptNetwork(_ctl, _cmd, _name) \
     virshCommandOptNetworkBy(_ctl, _cmd, _name, \
