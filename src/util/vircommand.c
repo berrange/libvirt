@@ -1950,6 +1950,7 @@ virCommandWriteArgLog(virCommandPtr cmd, int logfd)
 /**
  * virCommandToString:
  * @cmd: the command to convert
+ * @linebreaks: true to break line after each env var or option
  *
  * Call after adding all arguments and environment settings, but
  * before Run/RunAsync, to return a string representation of the
@@ -1959,10 +1960,11 @@ virCommandWriteArgLog(virCommandPtr cmd, int logfd)
  * Caller is responsible for freeing the resulting string.
  */
 char *
-virCommandToString(virCommandPtr cmd)
+virCommandToString(virCommandPtr cmd, bool linebreaks)
 {
     size_t i;
     virBuffer buf = VIR_BUFFER_INITIALIZER;
+    bool prevopt = false;
 
     /* Cannot assume virCommandRun will be called; so report the error
      * now.  If virCommandRun is called, it will report the same error. */
@@ -1991,11 +1993,22 @@ virCommandToString(virCommandPtr cmd)
         virBufferAdd(&buf, cmd->env[i], eq - cmd->env[i]);
         virBufferEscapeShell(&buf, eq);
         virBufferAddChar(&buf, ' ');
+        if (linebreaks)
+            virBufferAddLit(&buf, "\\\n");
     }
     virBufferEscapeShell(&buf, cmd->args[0]);
     for (i = 1; i < cmd->nargs; i++) {
         virBufferAddChar(&buf, ' ');
+        if (linebreaks) {
+            /* Line break if this is a --arg or if
+             * the previous arg was a positional option
+             */
+            if (cmd->args[i][0] == '-' ||
+                !prevopt)
+                virBufferAddLit(&buf, "\\\n");
+        }
         virBufferEscapeShell(&buf, cmd->args[i]);
+        prevopt = (cmd->args[i][0] == '-');
     }
 
     if (virBufferCheckError(&buf) < 0)
@@ -2438,7 +2451,7 @@ virCommandRunAsync(virCommandPtr cmd, pid_t *pid)
         goto cleanup;
     }
 
-    str = virCommandToString(cmd);
+    str = virCommandToString(cmd, false);
     if (dryRunBuffer || dryRunCallback) {
         dryRunStatus = 0;
         if (!str) {
@@ -2579,7 +2592,7 @@ virCommandWait(virCommandPtr cmd, int *exitstatus)
         if (exitstatus && (cmd->rawStatus || WIFEXITED(status))) {
             *exitstatus = cmd->rawStatus ? status : WEXITSTATUS(status);
         } else if (status) {
-            VIR_AUTOFREE(char *) str = virCommandToString(cmd);
+            VIR_AUTOFREE(char *) str = virCommandToString(cmd, false);
             VIR_AUTOFREE(char *) st = virProcessTranslateStatus(status);
             bool haveErrMsg = cmd->errbuf && *cmd->errbuf && (*cmd->errbuf)[0];
 
