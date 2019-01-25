@@ -1,0 +1,74 @@
+.job_template: &job_definition
+  script:
+    - mkdir vpath
+    - cd vpath
+    - ../autogen.sh $CONFIGURE_OPTS
+    - make -j $(getconf _NPROCESSORS_ONLN)
+
+debian-9-cross-aarch64:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-9-cross-aarch64:master
+
+debian-9-cross-armv6l:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-9-cross-armv6l:master
+
+debian-9-cross-armv7l:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-9-cross-armv7l:master
+
+debian-9-cross-mips64el:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-9-cross-mips64el:master
+
+debian-9-cross-mips:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-9-cross-mips:master
+
+debian-9-cross-mipsel:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-9-cross-mipsel:master
+
+debian-9-cross-ppc64le:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-9-cross-ppc64le:master
+
+debian-9-cross-s390x:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-9-cross-s390x:master
+
+debian-sid-cross-aarch64:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-sid-cross-aarch64:master
+
+debian-sid-cross-armv6l:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-sid-cross-armv6l:master
+
+debian-sid-cross-armv7l:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-sid-cross-armv7l:master
+
+debian-sid-cross-i686:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-sid-cross-i686:master
+
+debian-sid-cross-mips64el:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-sid-cross-mips64el:master
+
+debian-sid-cross-mips:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-sid-cross-mips:master
+
+debian-sid-cross-mipsel:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-sid-cross-mipsel:master
+
+debian-sid-cross-ppc64le:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-sid-cross-ppc64le:master
+
+debian-sid-cross-s390x:
+  <<: *job_definition
+  image: quay.io/libvirt/buildenv-debian-sid-cross-s390x:master
