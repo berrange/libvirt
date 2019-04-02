@@ -137,7 +137,7 @@ ci-prepare-tree: ci-check-docker
 		git clone $(CI_GIT_ARGS) $(CI_GIT_ROOT) $(CI_HOST_SRCDIR) || exit 1; \
 		for mod in $(CI_SUBMODULES) ; \
 		do \
-			if test -d $(CI_GIT_ROOT)/$$mod/.git || continue ; \
+			test -f $(CI_GIT_ROOT)/$$mod/.git || continue ; \
 			echo "Cloning $(CI_GIT_ROOT)/$$mod to $(CI_HOST_SRCDIR)/$$mod"; \
 			git clone $(CI_GIT_ARGS) $(CI_GIT_ROOT)/$$mod $(CI_HOST_SRCDIR)/$$mod || exit 1; \
 		done ; \
@@ -161,7 +161,7 @@ ci-build@%: ci-prepare-tree
 			exit 1 ; \
 		fi; \
 		find -name test-suite.log -delete ; \
-		export VIR_TEST_DEBUG=1; \
+		export VIR_TEST_DEBUG=1 ; \
 		make -j$(CI_SMP) gl_public_submodule_commit= $(CI_MAKE_ARGS) ; \
 		if test $$? != 0 ; then \
 			LOGS=`find -name test-suite.log` ; \
@@ -175,7 +175,7 @@ ci-build@%: ci-prepare-tree
 	@test "$(CI_CLEAN)" = "1" && rm -rf $(CI_SCRATCHDIR) || :
 
 ci-check@%:
-	$(MAKE) -f $(CI_MAKEFILE) ci-build@$* CI_MAKE_ARGS="check"
+	$(MAKE) -f Makefile.ci ci-build@$* CI_MAKE_ARGS="check"
 
 ci-shell@%: ci-prepare-tree
 	docker run $(CI_DOCKER_ARGS) $(CI_IMAGE_PREFIX)$*$(CI_IMAGE_TAG) /bin/bash
