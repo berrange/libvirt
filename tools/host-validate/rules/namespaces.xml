@@ -1,0 +1,94 @@
+<factlist xmlns="https://libvirt.org/xml/virt-host-validate/facts/1.0">
+
+  <fact name="os.namespace.ipc">
+    <report message="ipc process namespace"/>
+    <hint message="Enable ipc namespace in Kconfig"/>
+    <filter>
+      <all>
+	<fact name="libvirt.driver.lxc" value="true"/>
+	<fact name="os.kernel" value="Linux"/>
+      </all>
+    </filter>
+    <value>
+      <access path="/proc/self/ns/ipc" check="exists"/>
+    </value>
+  </fact>
+
+
+  <fact name="os.namespace.mnt">
+    <report message="mnt process namespace"/>
+    <hint message="Enable mnt namespace in Kconfig"/>
+    <filter>
+      <all>
+	<any>
+	  <fact name="libvirt.driver.lxc" value="true"/>
+	  <fact name="libvirt.driver.qemu" value="true"/>
+	</any>
+	<fact name="os.kernel" value="Linux"/>
+      </all>
+    </filter>
+    <value>
+      <access path="/proc/self/ns/mnt" check="exists"/>
+    </value>
+  </fact>
+
+
+  <fact name="os.namespace.pid">
+    <report message="pid process namespace"/>
+    <hint message="Enable pid namespace in Kconfig"/>
+    <filter>
+      <all>
+	<fact name="libvirt.driver.lxc" value="true"/>
+	<fact name="os.kernel" value="Linux"/>
+      </all>
+    </filter>
+    <value>
+      <access path="/proc/self/ns/pid" check="exists"/>
+    </value>
+  </fact>
+
+
+  <fact name="os.namespace.uts">
+    <report message="uts process namespace"/>
+    <hint message="Enable uts namespace in Kconfig"/>
+    <filter>
+      <all>
+	<fact name="libvirt.driver.lxc" value="true"/>
+	<fact name="os.kernel" value="Linux"/>
+      </all>
+    </filter>
+    <value>
+      <access path="/proc/self/ns/uts" check="exists"/>
+    </value>
+  </fact>
+
+
+  <fact name="os.namespace.net">
+    <report message="net process namespace"/>
+    <hint message="Enable net namespace in Kconfig"/>
+    <filter>
+      <all>
+	<fact name="libvirt.driver.lxc" value="true"/>
+	<fact name="os.kernel" value="Linux"/>
+      </all>
+    </filter>
+    <value>
+      <access path="/proc/self/ns/net" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.namespace.user">
+    <report message="user process namespace" level="warn"/>
+    <hint message="Enable user namespace in Kconfig"/>
+    <filter>
+      <all>
+	<fact name="libvirt.driver.lxc" value="true"/>
+	<fact name="os.kernel" value="Linux"/>
+      </all>
+    </filter>
+    <value>
+      <access path="/proc/self/ns/user" check="exists"/>
+    </value>
+  </fact>
+
+</factlist>

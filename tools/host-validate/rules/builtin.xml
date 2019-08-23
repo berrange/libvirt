@@ -1,0 +1,33 @@
+<factlist xmlns="https://libvirt.org/xml/virt-host-validate/facts/1.0">
+
+  <fact name="libvirt.driver">
+    <value>
+      <builtin/>
+    </value>
+  </fact>
+
+  <fact name="cpu.arch">
+    <value>
+      <builtin/>
+    </value>
+  </fact>
+
+  <fact name="os.kernel">
+    <value>
+      <builtin/>
+    </value>
+  </fact>
+
+  <fact name="os.release">
+    <value>
+      <builtin/>
+    </value>
+  </fact>
+
+  <fact name="os.version">
+    <value>
+      <builtin/>
+    </value>
+  </fact>
+
+</factlist>

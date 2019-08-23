@@ -1,0 +1,14 @@
+<factlist xmlns="https://libvirt.org/xml/virt-host-validate/facts/1.0">
+
+  <fact name="os.kmod">
+    <filter>
+      <fact name="os.kernel" value="FreeBSD"/>
+    </filter>
+    <value>
+      <command name="kldstat">
+        <parse format="set" skiphead="1" regex="\s+\d+\s+\d+\s+0x[0-9a-f]+\s+[0-9a-f]+\s+(\w+)" match="1"/>
+      </command>
+    </value>
+  </fact>
+
+</factlist>

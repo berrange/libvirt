@@ -1,0 +1,54 @@
+<factlist xmlns="https://libvirt.org/xml/virt-host-validate/facts/1.0">
+
+  <fact name="os.kvm.loaded">
+    <report message="/dev/kvm loaded"/>
+    <filter>
+      <all>
+	<fact name="libvirt.driver.qemu" value="true"/>
+	<fact name="cpu.virt.present" value="true"/>
+      </all>
+    </filter>
+    <value>
+      <access path="/dev/kvm" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.kvm.accessible">
+    <report message="/dev/kvm accessible"/>
+    <hint message="Check /dev/kvm is world writable or you are in a group that is allowed to access it"/>
+    <filter>
+      <fact name="os.kvm.loaded" value="true"/>
+    </filter>
+    <value>
+      <access path="/dev/kvm" check="writable"/>
+    </value>
+  </fact>
+
+  <fact name="os.vhostnet.present">
+    <report message="/dev/vhost-net present"/>
+    <hint message="Load the 'vhost_net' module to improve performance of virtio networking"/>
+    <filter>
+      <all>
+	<fact name="libvirt.driver.qemu" value="true"/>
+	<fact name="os.kvm.loaded" value="true"/>
+      </all>
+    </filter>
+    <value>
+      <access path="/dev/vhost-net" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.tun.present">
+    <report message="/dev/net/tun present"/>
+    <hint message="Load the 'tun' module to enable networking for QEMU guests"/>
+    <filter>
+      <all>
+	<fact name="libvirt.driver.qemu" value="true"/>
+	<fact name="os.kvm.loaded" value="true"/>
+      </all>
+    </filter>
+    <value>
+      <access path="/dev/net/tun" check="exists"/>
+    </value>
+  </fact>
+</factlist>

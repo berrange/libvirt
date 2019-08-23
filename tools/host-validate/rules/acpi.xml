@@ -1,0 +1,29 @@
+<factlist xmlns="https://libvirt.org/xml/virt-host-validate/facts/1.0">
+
+  <fact name="cpu.acpi.dmar">
+    <filter>
+      <all>
+	<fact name="cpu.family.x86" value="true"/>
+	<fact name="cpu.vendor.intel" value="true"/>
+	<fact name="os.kernel" value="Linux"/>
+      </all>
+    </filter>
+    <value>
+      <access path="/sys/firmware/acpi/tables/DMAR" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="cpu.acpi.ivrs">
+    <filter>
+      <all>
+	<fact name="cpu.family.x86" value="true"/>
+	<fact name="cpu.vendor.amd" value="true"/>
+	<fact name="os.kernel" value="Linux"/>
+      </all>
+    </filter>
+    <value>
+      <access path="/sys/firmware/acpi/tables/IVRS" check="exists"/>
+    </value>
+  </fact>
+
+</factlist>

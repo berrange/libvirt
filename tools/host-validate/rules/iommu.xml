@@ -1,0 +1,93 @@
+<factlist xmlns="https://libvirt.org/xml/virt-host-validate/facts/1.0">
+  <fact name="cpu.iommu.x86.intel.present">
+    <report message="Intel device assignment IOMMU present"/>
+    <hint message="IOMMU either disabled in BIOS or not supported by this hardware"/>
+    <filter>
+      <all>
+	<fact name="libvirt.driver.qemu" value="true"/>
+	<fact name="cpu.family.x86" value="true"/>
+	<fact name="cpu.vendor.intel" value="true"/>
+      </all>
+    </filter>
+    <value>
+      <bool>
+	<fact name="cpu.acpi.dmar" value="true"/>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="cpu.iommu.x86.amd.present">
+    <report message="AMD device assignment IOMMU present"/>
+    <hint message="IOMMU either disabled in BIOS or not supported by this hardware"/>
+    <filter>
+      <all>
+	<fact name="cpu.family.x86" value="true"/>
+	<fact name="cpu.vendor.amd" value="true"/>
+      </all>
+    </filter>
+    <value>
+      <bool>
+	<fact name="cpu.acpi.ivrs" value="true"/>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="cpu.iommu.s390x.present">
+    <report message="s390x device assignment IOMMU present"/>
+    <hint message="IOMMU either disabled in BIOS or not supported by this hardware"/>
+    <filter>
+      <fact name="cpu.family.s390" value="true"/>
+    </filter>
+    <value>
+      <bool>
+	<fact name="os.pci.devices.0" match="exists"/>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="os.iommu.groups">
+    <value>
+      <dirent path="/sys/kernel/iommu_groups" ignoreMissing="true"/>
+    </value>
+  </fact>
+
+  <fact name="os.iommu.x86.intel.enabled">
+    <report message="Intel device assignment IOMMU enabled"/>
+    <hint message="IOMMU disabled in kernel. Pass intel_iommu=on on kernel command line"/>
+    <filter>
+      <fact name="cpu.iommu.x86.intel.present" value="true"/>
+    </filter>
+    <value>
+      <bool>
+	<fact name="os.iommu.groups.0" match="exists"/>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="os.iommu.x86.amd.enabled">
+    <report message="AMD device assignment IOMMU enabled"/>
+    <hint message="IOMMU disabled in kernel. Pass iommu=pt iommu=1 on kernel command line"/>
+    <filter>
+      <fact name="cpu.iommu.x86.amd.present" value="true"/>
+    </filter>
+    <value>
+      <bool>
+	<fact name="os.iommu.groups.0" match="exists"/>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="os.iommu.s390x.enabled">
+    <report message="s390x device assignment IOMMU enabled"/>
+    <hint message="IOMMU disabled in kernel"/>
+    <filter>
+      <fact name="cpu.iommu.s390x.present" value="true"/>
+    </filter>
+    <value>
+      <bool>
+	<fact name="os.iommu.groups.0" match="exists"/>
+      </bool>
+    </value>
+  </fact>
+
+</factlist>

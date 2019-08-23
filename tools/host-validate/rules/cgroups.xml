@@ -1,0 +1,403 @@
+<factlist xmlns="https://libvirt.org/xml/virt-host-validate/facts/1.0">
+
+  <fact name="os.cgroup.controller">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <file path="/proc/cgroups">
+	<parse format="set" separator="\n" skiphead="1" skiptail="1" regex="^(\w+)" match="1"/>
+      </file>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.v2only">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <access path="/sys/fs/cgroup/cgroup.subtree_control" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.v2hybrid">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <file path="/sys/fs/cgroup/unified/cgroup.controllers" ignoreMissing="true">
+	<parse format="set" separator=" " whitespace="trim"/>
+      </file>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.mount.v2">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <file path="/sys/fs/cgroup/cgroup.controllers" ignoreMissing="true">
+	<parse format="set" separator=" " whitespace="trim"/>
+      </file>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.mount.v1.blkio">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <access path="/sys/fs/cgroup/blkio/cgroup.procs" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.mount.v1.cpu">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <access path="/sys/fs/cgroup/cpu/cgroup.procs" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.mount.v1.cpuacct">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <access path="/sys/fs/cgroup/cpuacct/cgroup.procs" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.mount.v1.cpuset">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <access path="/sys/fs/cgroup/cpuset/cgroup.procs" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.mount.v1.devices">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <access path="/sys/fs/cgroup/devices/cgroup.procs" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.mount.v1.freezer">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <access path="/sys/fs/cgroup/freezer/cgroup.procs" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.mount.v1.hugetlb">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <access path="/sys/fs/cgroup/hugetlb/cgroup.procs" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.mount.v1.memory">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <access path="/sys/fs/cgroup/memory/cgroup.procs" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.mount.v1.net_cls">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <access path="/sys/fs/cgroup/net_cls/cgroup.procs" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.mount.v1.net_prio">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <access path="/sys/fs/cgroup/net_prio/cgroup.procs" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.mount.v1.perf_event">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <access path="/sys/fs/cgroup/perf_event/cgroup.procs" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.mount.v1.pids">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <access path="/sys/fs/cgroup/pids/cgroup.procs" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.mount.unified">
+    <filter>
+      <fact name="os.kernel" value="Linux"/>
+    </filter>
+    <value>
+      <access path="/sys/fs/cgroup/unified/cgroup.procs" check="exists"/>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.memory.present">
+    <report message="cgroup memory controller present"/>
+    <hint message="enable memory cgroup controller in Kconfig"/>
+    <filter>
+      <all>
+	<any>
+	  <fact name="libvirt.driver.lxc" value="true"/>
+	  <fact name="libvirt.driver.qemu" value="true"/>
+	</any>
+	<fact name="os.kernel" value="Linux"/>
+      </all>
+    </filter>
+    <value>
+      <bool>
+	<fact name="os.cgroup.controller.memory" value="true"/>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.memory.mounted">
+    <report message="cgroup memory controller mounted"/>
+    <hint message="mount the memory cgroup controller under /sys/fs/cgroup"/>
+    <filter>
+      <fact name="os.cgroup.memory.present" value="true"/>
+    </filter>
+    <value>
+      <bool>
+	<any>
+	  <fact name="os.cgroup.mount.v1.memory" value="true"/>
+	  <fact name="os.cgroup.mount.v2.memory" value="true"/>
+	</any>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.cpu.present">
+    <report message="cgroup cpu controller present"/>
+    <hint message="enable cpu cgroup controller in Kconfig"/>
+    <filter>
+      <all>
+	<any>
+	  <fact name="libvirt.driver.lxc" value="true"/>
+	  <fact name="libvirt.driver.qemu" value="true"/>
+	</any>
+	<fact name="os.kernel" value="Linux"/>
+      </all>
+    </filter>
+    <value>
+      <bool>
+	<fact name="os.cgroup.controller.cpu" value="true"/>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.cpu.mounted">
+    <report message="cgroup cpu controller mounted"/>
+    <hint message="mount the cpu cgroup controller under /sys/fs/cgroup"/>
+    <filter>
+      <fact name="os.cgroup.cpu.present" value="true"/>
+    </filter>
+    <value>
+      <bool>
+	<any>
+	  <fact name="os.cgroup.mount.v1.cpu" value="true"/>
+	  <fact name="os.cgroup.mount.v2.cpu" value="true"/>
+	</any>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.cpuacct.present">
+    <report message="cgroup cpuacct controller present"/>
+    <hint message="enable cpuacct cgroup controller in Kconfig"/>
+    <filter>
+      <all>
+	<fact name="libvirt.driver.lxc" value="true"/>
+	<fact name="os.kernel" value="Linux"/>
+      </all>
+    </filter>
+    <value>
+      <bool>
+	<fact name="os.cgroup.controller.cpuacct" value="true"/>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.cpuacct.mounted">
+    <report message="cgroup cpuacct controller mounted"/>
+    <hint message="mount the cpuacct cgroup controller under /sys/fs/cgroup"/>
+    <filter>
+      <fact name="os.cgroup.cpuacct.present" value="true"/>
+    </filter>
+    <value>
+      <bool>
+	<any>
+	  <fact name="os.cgroup.mount.v1.cpuacct" value="true"/>
+	  <fact name="os.cgroup.mount.v2.cpuacct" value="true"/>
+	</any>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.cpuset.present">
+    <report message="cgroup cpuset controller present"/>
+    <hint message="enable cpuset cgroup controller in Kconfig"/>
+    <filter>
+      <all>
+	<any>
+	  <fact name="libvirt.driver.lxc" value="true"/>
+	  <fact name="libvirt.driver.qemu" value="true"/>
+	</any>
+	<fact name="os.kernel" value="Linux"/>
+      </all>
+    </filter>
+    <value>
+      <bool>
+	<fact name="os.cgroup.controller.cpuset" value="true"/>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.cpuset.mounted">
+    <report message="cgroup cpuset controller mounted"/>
+    <hint message="mount the cpuset cgroup controller under /sys/fs/cgroup"/>
+    <filter>
+      <fact name="os.cgroup.cpuset.present" value="true"/>
+    </filter>
+    <value>
+      <bool>
+	<any>
+	  <fact name="os.cgroup.mount.v1.cpuset" value="true"/>
+	  <fact name="os.cgroup.mount.v2.cpuset" value="true"/>
+	</any>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.devices.present">
+    <report message="cgroup devices controller present"/>
+    <hint message="enable devices cgroup controller in Kconfig"/>
+    <filter>
+      <all>
+	<any>
+	  <fact name="libvirt.driver.lxc" value="true"/>
+	  <fact name="libvirt.driver.qemu" value="true"/>
+	</any>
+	<fact name="os.kernel" value="Linux"/>
+      </all>
+    </filter>
+    <value>
+      <bool>
+	<fact name="os.cgroup.controller.devices" value="true"/>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.devices.mounted">
+    <report message="cgroup devices controller mounted"/>
+    <hint message="mount the devices cgroup controller under /sys/fs/cgroup"/>
+    <filter>
+      <fact name="os.cgroup.devices.present" value="true"/>
+    </filter>
+    <value>
+      <bool>
+	<any>
+	  <fact name="os.cgroup.mount.v1.devices" value="true"/>
+	  <fact name="os.cgroup.v2hybrid" value="true"/>
+	  <fact name="os.cgroup.v2only" value="true"/>
+	</any>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.blkio.present">
+    <report message="cgroup blkio controller present"/>
+    <hint message="enable blkio cgroup controller in Kconfig"/>
+    <filter>
+      <all>
+	<any>
+	  <fact name="libvirt.driver.lxc" value="true"/>
+	  <fact name="libvirt.driver.qemu" value="true"/>
+	</any>
+	<fact name="os.kernel" value="Linux"/>
+      </all>
+    </filter>
+    <value>
+      <bool>
+	<fact name="os.cgroup.controller.blkio" value="true"/>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.blkio.mounted">
+    <report message="cgroup blkio controller mounted"/>
+    <hint message="mount the blkio cgroup controller under /sys/fs/cgroup"/>
+    <filter>
+      <fact name="os.cgroup.blkio.present" value="true"/>
+    </filter>
+    <value>
+      <bool>
+	<any>
+	  <fact name="os.cgroup.mount.v1.blkio" value="true"/>
+	  <fact name="os.cgroup.mount.v2.io" value="true"/>
+	</any>
+      </bool>
+    </value>
+  </fact>
+
+
+  <fact name="os.cgroup.freezer.present">
+    <report message="cgroup freezer controller present"/>
+    <hint message="enable freezer cgroup controller in Kconfig"/>
+    <filter>
+      <all>
+	<fact name="libvirt.driver.lxc" value="true"/>
+	<fact name="os.kernel" value="Linux"/>
+      </all>
+    </filter>
+    <value>
+      <bool>
+	<fact name="os.cgroup.controller.freezer" value="true"/>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="os.cgroup.freezer.mounted">
+    <report message="cgroup freezer controller mounted"/>
+    <hint message="mount the freezer cgroup controller under /sys/fs/cgroup"/>
+    <filter>
+      <fact name="os.cgroup.freezer.present" value="true"/>
+    </filter>
+    <value>
+      <bool>
+	<any>
+	  <fact name="os.cgroup.mount.v1.freezer" value="true"/>
+	  <fact name="os.cgroup.mount.v2.freezer" value="true"/>
+	</any>
+      </bool>
+    </value>
+  </fact>
+
+</factlist>

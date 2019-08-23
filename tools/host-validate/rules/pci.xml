@@ -1,0 +1,9 @@
+<factlist xmlns="https://libvirt.org/xml/virt-host-validate/facts/1.0">
+
+  <fact name="os.pci.devices">
+    <value>
+      <dirent path="/sys/bus/pci/devices" ignoreMissing="true"/>
+    </value>
+  </fact>
+
+</factlist>

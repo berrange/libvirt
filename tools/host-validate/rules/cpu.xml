@@ -1,0 +1,148 @@
+<factlist xmlns="https://libvirt.org/xml/virt-host-validate/facts/1.0">
+
+  <fact name="cpu.info">
+    <value>
+      <file path="/proc/cpuinfo">
+	<parse format="list" separator="\n\n" limit="1">
+	  <parse format="dict" separator="\n" delimiter=":" whitespace="trim">
+	    <parse format="scalar" whitespace="trim"/>
+	  </parse>
+	</parse>
+      </file>
+    </value>
+  </fact>
+
+  <fact name="cpu.family.x86">
+    <value>
+      <bool>
+	<any>
+	  <fact name="cpu.arch" value="x86_64"/>
+	  <fact name="cpu.arch" value="i386"/>
+	  <fact name="cpu.arch" value="i486"/>
+	  <fact name="cpu.arch" value="i586"/>
+	  <fact name="cpu.arch" value="i686"/>
+	</any>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="cpu.family.arm">
+    <value>
+      <bool>
+	<any>
+	  <fact name="cpu.arch" value="aarch64"/>
+	  <fact name="cpu.arch" value="armv6"/>
+	  <fact name="cpu.arch" value="armv7"/>
+	</any>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="cpu.family.s390">
+    <value>
+      <bool>
+	<any>
+	  <fact name="cpu.arch" value="s390"/>
+	  <fact name="cpu.arch" value="s390x"/>
+	</any>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="cpu.vendor.intel">
+    <filter>
+      <fact name="cpu.family.x86" value="true"/>
+    </filter>
+    <value>
+      <bool>
+	<fact name="cpu.info.0.vendor_id" value="GenuineIntel"/>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="cpu.vendor.amd">
+    <filter>
+      <fact name="cpu.family.x86" value="true"/>
+    </filter>
+    <value>
+      <bool>
+	<fact name="cpu.info.0.vendor_id" value="AuthenticAMD"/>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="cpu.features.x86">
+    <filter>
+      <fact name="cpu.family.x86" value="true"/>
+    </filter>
+
+    <value>
+      <string fact="cpu.info.0.flags">
+	<parse format="set" separator=" " whitespace="trim"/>
+      </string>
+    </value>
+  </fact>
+
+
+  <fact name="cpu.features.arm">
+    <filter>
+      <fact name="cpu.family.arm" value="true"/>
+    </filter>
+
+    <value>
+      <string fact="cpu.info.0.Features">
+	<parse format="set" separator=" " whitespace="trim"/>
+      </string>
+    </value>
+  </fact>
+
+  <fact name="cpu.features.s390">
+    <filter>
+      <fact name="cpu.family.s390" value="true"/>
+    </filter>
+
+    <value>
+      <string fact="cpu.info.0.features">
+	<parse format="set" separator=" " whitespace="trim"/>
+      </string>
+    </value>
+  </fact>
+
+  <fact name="cpu.virt.possible">
+    <report message="hardware virt possible"/>
+    <filter>
+      <fact name="libvirt.driver.qemu" value="true"/>
+    </filter>
+    <value>
+      <bool>
+	<any>
+	  <fact name="cpu.family.x86" value="true"/>
+	</any>
+      </bool>
+    </value>
+  </fact>
+
+  <fact name="cpu.virt.present">
+    <report message="hardware virt present"/>
+    <hint message="only emulated CPUs are available, performance will be significantly limited"/>
+    <filter>
+      <fact name="cpu.virt.possible" value="true"/>
+    </filter>
+    <value>
+      <bool>
+	<any>
+	  <all>
+	    <fact name="cpu.vendor.amd" value="true"/>
+	    <fact name="cpu.features.x86.svm" value="true"/>
+	  </all>
+	  <all>
+	    <fact name="cpu.vendor.intel" value="true"/>
+	    <fact name="cpu.features.x86.vmx" value="true"/>
+	  </all>
+	  <fact name="cpu.features.s390.sie" value="true"/>
+	</any>
+      </bool>
+    </value>
+  </fact>
+
+</factlist>

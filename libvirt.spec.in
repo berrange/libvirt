@@ -402,6 +402,10 @@ BuildRequires: libtirpc-devel
 BuildRequires: firewalld-filesystem
 %endif
 
+BuildRequires: golang >= 1.12
+BuildRequires: golang-ipath(github.com/spf13/pflag)
+BuildRequires: golang-ipath(golang.org/x/sys)
+
 Provides: bundled(gnulib)
 
 %description
@@ -1154,6 +1158,15 @@ export SOURCE_DATE_EPOCH=$(stat --printf='%Y' %{_specdir}/%{name}.spec)
 %if 0%{?enable_autotools}
  autoreconf -if
 %endif
+
+# We're building without go modules enabled, so
+# must make a local Go root with the old style
+# dir naming scheme/hierarchy
+mkdir -p gocode/src/libvirt.org
+ln -s `pwd`/tools/host-validate `pwd`/gocode/src/libvirt.org/host-validate
+
+export GOGO111MODULE=off
+export GOPATH=/usr/share/gocode:`pwd`/gocode
 
 rm -f po/stamp-po
 %configure --with-runstatedir=%{_rundir} \

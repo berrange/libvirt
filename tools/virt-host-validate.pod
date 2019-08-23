@@ -19,9 +19,13 @@ to those relevant for that virtualization technology
 
 =over 4
 
-=item C<-v>, C<--version>
+=item C<-f>, C<--facts>
 
-Display the command version
+Display all the key, value pairs set for facts
+
+=item C<-r>, C<--rules-dir>
+
+Override the default location of the XML rule files
 
 =item C<-h>, C<--help>
 
@@ -52,11 +56,11 @@ Alternatively report bugs to your software distributor / vendor.
 
 =head1 COPYRIGHT
 
-Copyright (C) 2012 by Red Hat, Inc.
+Copyright (C) 2019 by Red Hat, Inc.
 
 =head1 LICENSE
 
-virt-host-validate is distributed under the terms of the GNU GPL v2+.
+virt-host-validate is distributed under the terms of the GNU LGPL v2.1+.
 This is free software; see the source for copying conditions. There
 is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR
 PURPOSE
