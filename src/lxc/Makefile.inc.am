@@ -184,6 +184,7 @@ libvirt_lxc_LDFLAGS = \
 	$(PIE_LDFLAGS) \
 	$(CAPNG_LIBS) \
 	$(LIBXML_LIBS) \
+	$(GLIB_LIBS) \
 	$(NULL)
 libvirt_lxc_LDADD = \
 	libvirt.la \
@@ -200,6 +201,7 @@ libvirt_lxc_CFLAGS = \
 	$(PIE_CFLAGS) \
 	$(CAPNG_CFLAGS) \
 	$(LIBXML_CFLAGS) \
+	$(GLIB_CFLAGS) \
 	$(LIBNL_CFLAGS) \
 	$(FUSE_CFLAGS) \
 	$(DBUS_CFLAGS) \

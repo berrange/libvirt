@@ -288,6 +288,7 @@ libvirt_util_la_LIBADD = \
 	$(DBUS_LIBS) \
 	$(WIN32_EXTRA_LIBS) \
 	$(LIBXML_LIBS) \
+	$(GLIB_LIBS) \
 	$(SECDRIVER_LIBS) \
 	$(NUMACTL_LIBS) \
 	$(ACL_LIBS) \
