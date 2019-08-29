@@ -1483,10 +1483,6 @@ virSecurityManagerVerify;
 # util/viralloc.h
 virAlloc;
 virAllocN;
-virAllocTestCount;
-virAllocTestHook;
-virAllocTestInit;
-virAllocTestOOM;
 virAllocVar;
 virDeleteElementsN;
 virDispose;
