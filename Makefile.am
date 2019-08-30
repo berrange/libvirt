@@ -48,6 +48,7 @@ EXTRA_DIST = \
   scripts/augeas-gentest.py \
   scripts/check-aclperms.py \
   scripts/check-spacing.py \
+  scripts/check-symsorting.py \
   scripts/header-ifdef.py \
   scripts/minimize-po.py \
   scripts/mock-noinline.py \
