@@ -57,6 +57,7 @@ EXTRA_DIST = \
   scripts/dtrace2systemtap.py \
   scripts/genpolkit.py \
   scripts/gensystemtap.py \
+  scripts/group-qemu-caps.py \
   scripts/header-ifdef.py \
   scripts/minimize-po.py \
   scripts/mock-noinline.py \

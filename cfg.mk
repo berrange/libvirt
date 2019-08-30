@@ -1175,7 +1175,8 @@ test-wrap-argv:
 	$(PYTHON) $(top_srcdir)/scripts/test-wrap-argv.py --check
 
 group-qemu-caps:
-	$(AM_V_GEN)$(PERL) $(top_srcdir)/tests/group-qemu-caps.pl --check $(top_srcdir)/
+	$(AM_V_GEN)$(RUNUTF8) $(PYTHON) $(top_srcdir)/scripts/group-qemu-caps.py \
+		--check --prefix $(top_srcdir)/
 
 # sc_po_check can fail if generated files are not built first
 sc_po_check: \
