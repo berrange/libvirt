@@ -47,6 +47,7 @@ EXTRA_DIST = \
   AUTHORS.in \
   scripts/augeas-gentest.py \
   scripts/check-aclperms.py \
+  scripts/check-aclrules.py \
   scripts/check-drivername.py \
   scripts/check-driverimpls.py \
   scripts/check-spacing.py \

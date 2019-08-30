@@ -361,7 +361,7 @@ check-driverimpls:
 			$(filter-out /%,$(DRIVER_SOURCE_FILES))))
 
 check-aclrules:
-	$(AM_V_GEN)$(PERL) $(srcdir)/check-aclrules.pl \
+	$(AM_V_GEN)$(RUNUTF8) $(PYTHON) $(top_srcdir)/scripts/check-aclrules.py \
 		$(REMOTE_PROTOCOL) \
 		$(addprefix $(srcdir)/,$(filter-out /%,$(STATEFUL_DRIVER_SOURCE_FILES)))
 
@@ -369,8 +369,6 @@ check-aclperms:
 	$(AM_V_GEN)$(RUNUTF8) $(PYTHON) $(top_srcdir)/scripts/check-aclperms.py \
 		$(srcdir)/access/viraccessperm.h \
 		$(srcdir)/access/viraccessperm.c
-
-EXTRA_DIST += check-aclrules.pl
 
 check-local: check-protocol check-symfile check-symsorting \
 	check-drivername check-driverimpls check-aclrules \
