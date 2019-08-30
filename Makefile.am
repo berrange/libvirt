@@ -49,7 +49,7 @@ EXTRA_DIST = \
   scripts/check-spacing.py \
   build-aux/header-ifdef.pl \
   scripts/minimize-po.py \
-  build-aux/mock-noinline.pl \
+  scripts/mock-noinline.py \
   scripts/prohibit-duplicate-header.py \
   build-aux/useless-if-before-free \
   build-aux/vc-list-files \
