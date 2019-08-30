@@ -452,14 +452,13 @@ EXTRA_DIST += $(test_scripts)
 if WITH_LINUX
 check-access: file-access-clean
 	VIR_TEST_FILE_ACCESS=1 $(MAKE) $(AM_MAKEFLAGS) check
-	$(PERL) check-file-access.pl | sort -u
+	$(RUNUTF8) $(PYTHON) $(top_srcdir)/scripts/check-file-access.py | sort -u
 
 file-access-clean:
 	> test_file_access.txt
 endif WITH_LINUX
 
 EXTRA_DIST += \
-	check-file-access.pl \
 	file_access_whitelist.txt
 
 if WITH_TESTS

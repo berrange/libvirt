@@ -50,6 +50,7 @@ EXTRA_DIST = \
   scripts/check-aclrules.py \
   scripts/check-drivername.py \
   scripts/check-driverimpls.py \
+  scripts/check-file-access.py \
   scripts/check-remote-protocol.py \
   scripts/check-spacing.py \
   scripts/check-symfile.py \
