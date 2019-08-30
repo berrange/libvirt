@@ -602,7 +602,6 @@ nodist_libvirt_la_SOURCES = libvirt_probes.h
 if WITH_REMOTE
 nodist_libvirt_driver_remote_la_SOURCES = libvirt_probes.h
 endif WITH_REMOTE
-DTRACE2SYSTEMTAP_FLAGS = --with-modules
 
 BUILT_SOURCES += libvirt_probes.h libvirt_probes.stp libvirt_functions.stp
 
@@ -637,10 +636,10 @@ RPC_PROBE_FILES += $(srcdir)/rpc/virnetprotocol.x \
 libvirt_functions.stp: $(RPC_PROBE_FILES) $(srcdir)/rpc/gensystemtap.pl
 	$(AM_V_GEN)$(PERL) -w $(srcdir)/rpc/gensystemtap.pl $(RPC_PROBE_FILES) > $@
 
-%_probes.stp: %_probes.d $(srcdir)/dtrace2systemtap.pl \
+%_probes.stp: %_probes.d $(top_srcdir)/scripts/dtrace2systemtap.py \
 		$(top_builddir)/config.status
-	$(AM_V_GEN)$(PERL) -w $(srcdir)/dtrace2systemtap.pl \
-	  $(DTRACE2SYSTEMTAP_FLAGS) $(bindir) $(sbindir) $(libdir) $< > $@
+	$(AM_V_GEN)$(RUNUTF8) $(PYTHON) $(top_srcdir)/scripts/dtrace2systemtap.py \
+	  $(bindir) $(sbindir) $(libdir) $< > $@
 
 CLEANFILES += libvirt_probes.h libvirt_probes.o libvirt_probes.lo \
               libvirt_functions.stp libvirt_probes.stp
@@ -759,9 +758,6 @@ INSTALL_DATA_LOCAL += install-systemd
 UNINSTALL_LOCAL += uninstall-systemd
 endif LIBVIRT_INIT_SCRIPT_SYSTEMD
 endif WITH_LIBVIRTD
-
-
-EXTRA_DIST += dtrace2systemtap.pl
 
 
 if WITH_LIBVIRTD
