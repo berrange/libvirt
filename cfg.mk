@@ -1156,8 +1156,8 @@ prohibit-duplicate-header:
 	$(PYTHON) $(top_srcdir)/scripts/prohibit-duplicate-header.py
 
 spacing-check:
-	$(AM_V_GEN)$(VC_LIST) | $(GREP) '\.c$$' | xargs \
-	$(PERL) $(top_srcdir)/build-aux/check-spacing.pl || \
+	$(AM_V_GEN)$(VC_LIST) | $(GREP) '\.c$$' | $(RUNUTF8) xargs \
+	$(PYTHON) $(top_srcdir)/scripts/check-spacing.py || \
 	  { echo '$(ME): incorrect formatting' 1>&2; exit 1; }
 
 mock-noinline:

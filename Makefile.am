@@ -46,7 +46,7 @@ EXTRA_DIST = \
   README.md \
   AUTHORS.in \
   scripts/augeas-gentest.py \
-  build-aux/check-spacing.pl \
+  scripts/check-spacing.py \
   build-aux/header-ifdef.pl \
   scripts/minimize-po.py \
   build-aux/mock-noinline.pl \
