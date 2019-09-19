@@ -21,12 +21,13 @@
 
 #pragma once
 
-#include "virobject.h"
+#include "internal.h"
+#include <glib-object.h>
 
-typedef struct _virIdentity virIdentity;
+#define VIR_TYPE_IDENTITY virIdentity_get_type()
+G_DECLARE_FINAL_TYPE(virIdentity, virIdentity, VIR, IDENTITY, GObject);
+
 typedef virIdentity *virIdentityPtr;
-
-G_DEFINE_AUTOPTR_CLEANUP_FUNC(virIdentity, virObjectUnref);
 
 virIdentityPtr virIdentityGetCurrent(void);
 int virIdentitySetCurrent(virIdentityPtr ident);
