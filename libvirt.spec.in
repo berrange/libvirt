@@ -401,6 +401,8 @@ BuildRequires: libtirpc-devel
 BuildRequires: firewalld-filesystem
 %endif
 
+BuildRequires: golang >= 1.11
+
 Provides: bundled(gnulib)
 
 %description
@@ -1161,6 +1163,21 @@ export SOURCE_DATE_EPOCH=$(stat --printf='%Y' %{_specdir}/%{name}.spec)
  autoreconf -if
 %endif
 
+# We're building without go modules enabled, so
+# must make a local Go root with the old style
+# dir naming scheme/hierarchy
+mkdir -p gocode/src/libvirt.org
+
+export GO111MODULE=off
+export GOPATH=/usr/share/gocode:`pwd`/gocode
+
+%if 0%{?fedora} >= 32
+GOBUILDFLAGS="%gobuildflags"
+%else
+GOBUILDFLAGS="-buildmode pie -compiler gc -tags=\"rpm_crashtraceback ${BUILDTAGS:-}\" -ldflags \"${LDFLAGS:-} -B 0x$(head -c20 /dev/urandom|od -An -tx1|tr -d ' \n') -extldflags '-Wl,-z,relro -Wl,--as-needed  -Wl,-z,now -specs=/usr/lib/rpm/redhat/redhat-hardened-ld '\" -a -v -x"
+%endif
+export GOBUILDFLAGS
+
 rm -f po/stamp-po
 %configure --with-runstatedir=%{_rundir} \
            %{?arg_qemu} \
@@ -1224,7 +1241,7 @@ rm -f po/stamp-po
            --enable-expensive-tests \
            --with-init-script=systemd \
            %{?arg_login_shell}
-make %{?_smp_mflags} V=1
+make %{?_smp_mflags} V=1 GOBUILDFLAGS="$GOBUILDFLAGS"
 
 %install
 rm -fr %{buildroot}
