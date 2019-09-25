@@ -173,6 +173,7 @@ virt_host_validate_rules_DATA = \
 	$(srcdir)/host-validate/rules/linux-acpi.yaml \
 	$(srcdir)/host-validate/rules/linux-cgroups.yaml \
 	$(srcdir)/host-validate/rules/linux-cpu.yaml \
+	$(srcdir)/host-validate/rules/linux-cpu-hardware-flaws.yaml \
 	$(srcdir)/host-validate/rules/linux-devices.yaml \
 	$(srcdir)/host-validate/rules/linux-iommu.yaml \
 	$(srcdir)/host-validate/rules/linux-namespaces.yaml \

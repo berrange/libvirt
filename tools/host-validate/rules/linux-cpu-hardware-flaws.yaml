@@ -1,0 +1,165 @@
+#
+# Define facts related to CPU hardware vulnerabilities
+#
+
+facts:
+- name: cpu.vulnerability.meltdown
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    file:
+      path: /sys/devices/system/cpu/vulnerabilities/meltdown
+      ignoreMissing: true
+      parse:
+        scalar:
+          regex: (\w+)
+          match: 1
+- name: cpu.vulnerability.spectre_v1
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    file:
+      path: /sys/devices/system/cpu/vulnerabilities/spectre_v1
+      ignoreMissing: true
+      parse:
+        scalar:
+          regex: (\w+)
+          match: 1
+- name: cpu.vulnerability.spectre_v2
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    file:
+      path: /sys/devices/system/cpu/vulnerabilities/spectre_v2
+      ignoreMissing: true
+      parse:
+        scalar:
+          regex: (\w+)
+          match: 1
+- name: cpu.vulnerability.spec_store_bypass
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    file:
+      path: /sys/devices/system/cpu/vulnerabilities/spec_store_bypass
+      ignoreMissing: true
+      parse:
+        scalar:
+          regex: (\w+)
+          match: 1
+- name: cpu.vulnerability.mds
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    file:
+      path: /sys/devices/system/cpu/vulnerabilities/mds
+      ignoreMissing: true
+      parse:
+        scalar:
+          regex: (\w+)
+          match: 1
+- name: cpu.vulnerability.mds_smt
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    file:
+      path: /sys/devices/system/cpu/vulnerabilities/mds
+      ignoreMissing: true
+      parse:
+        scalar:
+          regex: SMT (\w+)
+          match: 1
+- name: cpu.vulnerability.l1tf
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    file:
+      path: /sys/devices/system/cpu/vulnerabilities/l1tf
+      ignoreMissing: true
+      parse:
+        scalar:
+          regex: (\w+)
+          match: 1
+- name: cpu.vulnerability.l1tf_smt
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    file:
+      path: /sys/devices/system/cpu/vulnerabilities/l1tf
+      ignoreMissing: true
+      parse:
+        scalar:
+          regex: SMT (\w+)
+          match: 1
+- name: cpu.vulnerability.unsafe
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  report:
+    message: CPU hardware vulnerability mitigation
+    pass: false
+  value:
+    bool:
+      any:
+        expressions:
+        - fact:
+            name: cpu.vulnerability.meltdown
+            value: Vulnerable
+        - fact:
+            name: cpu.vulnerability.spectre_v1
+            value: Vulnerable
+        - fact:
+            name: cpu.vulnerability.spectre_v2
+            value: Vulnerable
+        - fact:
+            name: cpu.vulnerability.spec_store_bypass
+            value: Vulnerable
+        - fact:
+            name: cpu.vulnerability.mds
+            value: Vulnerable
+        - fact:
+            name: cpu.vulnerability.l1tf
+            value: Vulnerable
+- name: cpu.vulnerability.unsafe_smt
+  filter:
+    all:
+      expressions:
+      - fact:
+          name: os.kernel
+          value: Linux
+      - fact:
+          name: cpu.vendor.intel
+          value: "true"
+      - fact:
+          name: cpu.virt.present
+          value: "true"
+  report:
+    message: CPU hardware vulnerability SMT safety
+    pass: false
+  value:
+    bool:
+      any:
+        expressions:
+        - fact:
+            name: cpu.vulnerability.mds_smt
+            value: vulnerable
+        - fact:
+            name: cpu.vulnerability.l1tf_smt
+            value: vulnerable

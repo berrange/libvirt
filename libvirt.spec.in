@@ -1901,6 +1901,7 @@ exit 0
 %{_datadir}/libvirt/host-validate/linux-acpi.yaml
 %{_datadir}/libvirt/host-validate/linux-cgroups.yaml
 %{_datadir}/libvirt/host-validate/linux-cpu.yaml
+%{_datadir}/libvirt/host-validate/linux-cpu-hardware-flaws.yaml
 %{_datadir}/libvirt/host-validate/linux-devices.yaml
 %{_datadir}/libvirt/host-validate/linux-iommu.yaml
 %{_datadir}/libvirt/host-validate/linux-namespaces.yaml
