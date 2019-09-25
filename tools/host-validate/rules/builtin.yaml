@@ -1,0 +1,20 @@
+#
+# Define boilerplate to activate various built-in facts
+#
+
+facts:
+- name: libvirt.driver
+  value:
+    builtin: {}
+- name: cpu.arch
+  value:
+    builtin: {}
+- name: os.kernel
+  value:
+    builtin: {}
+- name: os.release
+  value:
+    builtin: {}
+- name: os.version
+  value:
+    builtin: {}

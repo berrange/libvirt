@@ -1,0 +1,113 @@
+#
+# Define facts related to IOMMU availability
+#
+
+facts:
+- name: cpu.iommu.x86.intel.present
+  filter:
+    all:
+      expressions:
+      - fact:
+          name: libvirt.driver.qemu
+          value: "true"
+      - fact:
+          name: cpu.family.x86
+          value: "true"
+      - fact:
+          name: cpu.vendor.intel
+          value: "true"
+  report:
+    message: Intel device assignment IOMMU present
+    level: note
+  hint:
+    message: IOMMU either disabled in BIOS or not supported by this hardware
+  value:
+    bool:
+      fact:
+        name: cpu.acpi.dmar
+        value: "true"
+- name: cpu.iommu.x86.amd.present
+  filter:
+    all:
+      expressions:
+      - fact:
+          name: cpu.family.x86
+          value: "true"
+      - fact:
+          name: cpu.vendor.amd
+          value: "true"
+  report:
+    message: AMD device assignment IOMMU present
+    level: note
+  hint:
+    message: IOMMU either disabled in BIOS or not supported by this hardware
+  value:
+    bool:
+      fact:
+        name: cpu.acpi.ivrs
+        value: "true"
+- name: cpu.iommu.s390x.present
+  filter:
+    fact:
+      name: cpu.family.s390
+      value: "true"
+  report:
+    message: s390x device assignment IOMMU present
+    level: note
+  hint:
+    message: IOMMU either disabled in BIOS or not supported by this hardware
+  value:
+    bool:
+      fact:
+        match: exists
+        name: os.pci.devices.0
+- name: os.iommu.groups
+  value:
+    dirent:
+      ignoreMissing: true
+      path: /sys/kernel/iommu_groups
+- name: os.iommu.x86.intel.enabled
+  filter:
+    fact:
+      name: cpu.iommu.x86.intel.present
+      value: "true"
+  report:
+    message: Intel device assignment IOMMU enabled
+    level: warn
+  hint:
+    message: IOMMU disabled by the kernel. Pass 'intel_iommu=on' on the kernel command line
+  value:
+    bool:
+      fact:
+        name: os.iommu.groups.0
+        match: exists
+- name: os.iommu.x86.amd.enabled
+  filter:
+    fact:
+      name: cpu.iommu.x86.amd.present
+      value: "true"
+  report:
+    message: AMD device assignment IOMMU enabled
+    level: warn
+  hint:
+    message: IOMMU disabled by the kernel. Pass 'iommu=pt iommu=1' on the kernel command line
+  value:
+    bool:
+      fact:
+        name: os.iommu.groups.0
+        match: exists
+- name: os.iommu.s390x.enabled
+  filter:
+    fact:
+      name: cpu.iommu.s390x.present
+      value: "true"
+  report:
+    message: s390x device assignment IOMMU enabled
+    level: warn
+  hint:
+    message: IOMMU disabled by the kernel
+  value:
+    bool:
+      fact:
+        name: os.iommu.groups.0
+        match: exists

@@ -1,0 +1,71 @@
+#
+# Define facts related to device nodes on the host
+#
+
+facts:
+- name: os.kvm.loaded
+  filter:
+    all:
+      expressions:
+      - fact:
+          name: libvirt.driver.qemu
+          value: "true"
+      - fact:
+          name: cpu.virt.present
+          value: "true"
+  report:
+    message: /dev/kvm loaded
+  value:
+    access:
+      check: exists
+      path: /dev/kvm
+- name: os.kvm.accessible
+  filter:
+    fact:
+      name: os.kvm.loaded
+      value: "true"
+  report:
+    message: /dev/kvm accessible
+  hint:
+    message: Check /dev/kvm is world writable or you are in a group that is allowed
+      to access it
+  value:
+    access:
+      check: writable
+      path: /dev/kvm
+- name: os.vhostnet.present
+  filter:
+    all:
+      expressions:
+      - fact:
+          name: libvirt.driver.qemu
+          value: "true"
+      - fact:
+          name: os.kvm.loaded
+          value: "true"
+  report:
+    message: /dev/vhost-net present
+  hint:
+    message: Load the 'vhost_net' module to improve performance of virtio networking
+  value:
+    access:
+      check: exists
+      path: /dev/vhost-net
+- name: os.tun.present
+  filter:
+    all:
+      expressions:
+      - fact:
+          name: libvirt.driver.qemu
+          value: "true"
+      - fact:
+          name: os.kvm.loaded
+          value: "true"
+  report:
+    message: /dev/net/tun present
+  hint:
+    message: Load the 'tun' module to enable networking for QEMU guests
+  value:
+    access:
+      check: exists
+      path: /dev/net/tun

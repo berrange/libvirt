@@ -1,0 +1,134 @@
+#
+# Define facts related to host CPU properties
+#
+
+facts:
+- name: cpu.info
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    file:
+      path: /proc/cpuinfo
+      parse:
+        list:
+          limit: 1
+          separator: \n\n
+          parse:
+            whitespace: trim
+            dict:
+              separator: \n
+              delimiter: ':'
+              parse:
+                whitespace: trim
+                scalar: {}
+- name: cpu.vendor.intel
+  filter:
+    fact:
+      name: cpu.family.x86
+      value: "true"
+  value:
+    bool:
+      fact:
+        name: cpu.info.0.vendor_id
+        value: GenuineIntel
+- name: cpu.vendor.amd
+  filter:
+    fact:
+      name: cpu.family.x86
+      value: "true"
+  value:
+    bool:
+      fact:
+        name: cpu.info.0.vendor_id
+        value: AuthenticAMD
+- name: cpu.features.x86
+  filter:
+    fact:
+      name: cpu.family.x86
+      value: "true"
+  value:
+    string:
+      fact: cpu.info.0.flags
+      parse:
+        whitespace: trim
+        set:
+          skiphead: 0
+          skiptail: 0
+          separator: ' '
+- name: cpu.features.arm
+  filter:
+    fact:
+      name: cpu.family.arm
+      value: "true"
+  value:
+    string:
+      fact: cpu.info.0.Features
+      parse:
+        whitespace: trim
+        set:
+          skiphead: 0
+          skiptail: 0
+          separator: ' '
+- name: cpu.features.s390
+  filter:
+    fact:
+      name: cpu.family.s390
+      value: "true"
+  value:
+    string:
+      fact: cpu.info.0.features
+      parse:
+        whitespace: trim
+        set:
+          skiphead: 0
+          skiptail: 0
+          separator: ' '
+- name: cpu.virt.possible
+  filter:
+    fact:
+      name: libvirt.driver.qemu
+      value: "true"
+  report:
+    message: hardware virt possible
+  value:
+    bool:
+      any:
+        expressions:
+        - fact:
+            name: cpu.family.x86
+            value: "true"
+- name: cpu.virt.present
+  filter:
+    fact:
+      name: cpu.virt.possible
+      value: "true"
+  report:
+    message: hardware virt present
+    level: warn
+  hint:
+    message: only emulated CPUs are available, performance will be significantly limited
+  value:
+    bool:
+      any:
+        expressions:
+        - all:
+            expressions:
+            - fact:
+                name: cpu.vendor.amd
+                value: "true"
+            - fact:
+                name: cpu.features.x86.svm
+                value: "true"
+        - all:
+            expressions:
+            - fact:
+                name: cpu.vendor.intel
+                value: "true"
+            - fact:
+                name: cpu.features.x86.vmx
+                value: "true"
+        - fact:
+            name: cpu.features.s390.sie
+            value: "true"

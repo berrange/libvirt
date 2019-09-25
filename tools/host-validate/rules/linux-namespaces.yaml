@@ -1,0 +1,119 @@
+#
+# Define facts related to Linux kernel namespaces
+#
+
+facts:
+- name: os.namespace.ipc
+  filter:
+    all:
+      expressions:
+      - fact:
+          name: libvirt.driver.lxc
+          value: "true"
+      - fact:
+          name: os.kernel
+          value: Linux
+  report:
+    message: ipc process namespace
+  hint:
+    message: Enable ipc namespace in Kconfig
+  value:
+    access:
+      path: /proc/self/ns/ipc
+      check: exists
+- name: os.namespace.mnt
+  filter:
+    all:
+      expressions:
+      - any:
+          expressions:
+          - fact:
+              name: libvirt.driver.lxc
+              value: "true"
+          - fact:
+              name: libvirt.driver.qemu
+              value: "true"
+      - fact:
+          name: os.kernel
+          value: Linux
+  report:
+    message: mnt process namespace
+  hint:
+    message: Enable mnt namespace in Kconfig
+  value:
+    access:
+      path: /proc/self/ns/mnt
+      check: exists
+- name: os.namespace.pid
+  filter:
+    all:
+      expressions:
+      - fact:
+          name: libvirt.driver.lxc
+          value: "true"
+      - fact:
+          name: os.kernel
+          value: Linux
+  report:
+    message: pid process namespace
+  hint:
+    message: Enable pid namespace in Kconfig
+  value:
+    access:
+      path: /proc/self/ns/pid
+      check: exists
+- name: os.namespace.uts
+  filter:
+    all:
+      expressions:
+      - fact:
+          name: libvirt.driver.lxc
+          value: "true"
+      - fact:
+          name: os.kernel
+          value: Linux
+  report:
+    message: uts process namespace
+  hint:
+    message: Enable uts namespace in Kconfig
+  value:
+    access:
+      path: /proc/self/ns/uts
+      check: exists
+- name: os.namespace.net
+  filter:
+    all:
+      expressions:
+      - fact:
+          name: libvirt.driver.lxc
+          value: "true"
+      - fact:
+          name: os.kernel
+          value: Linux
+  report:
+    message: net process namespace
+  hint:
+    message: Enable net namespace in Kconfig
+  value:
+    access:
+      path: /proc/self/ns/net
+      check: exists
+- name: os.namespace.user
+  filter:
+    all:
+      expressions:
+      - fact:
+          name: libvirt.driver.lxc
+          value: "true"
+      - fact:
+          name: os.kernel
+          value: Linux
+  report:
+    level: warn
+    message: user process namespace
+  hint:
+    message: Enable user namespace in Kconfig
+  value:
+    access:
+      path: /proc/self/ns/user
+      check: exists

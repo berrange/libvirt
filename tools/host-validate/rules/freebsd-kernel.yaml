@@ -1,0 +1,77 @@
+#
+# Define facts related to BHyve on FreeBSD
+#
+
+facts:
+- name: os.kmod
+  filter:
+    fact:
+      name: os.kernel
+      value: FreeBSD
+  value:
+    command:
+      name: kldstat
+      parse:
+        set:
+          separator: \n
+          skiphead: 1
+          skiptail: 1
+          regex: \s+\d+\s+\d+\s+0x[0-9a-f]+\s+[0-9a-f]+\s+(\w+)
+          match: 1
+- name: kmod.vmm
+  filter:
+    fact:
+      name: libvirt.driver.bhyve
+      value: "true"
+  report:
+    message: BHyve VMs can be run
+  hint:
+    message: load the 'vmm' kernel module
+  value:
+    bool:
+      fact:
+        name: os.kmod.vmm
+        value: "true"
+- name: kmod.if_tap
+  filter:
+    fact:
+      name: libvirt.driver.bhyve
+      value: "true"
+  report:
+    message: BHyve VMs can use networking
+  hint:
+    message: load the 'if_tap' kernel module
+  value:
+    bool:
+      fact:
+        name: os.kmod.if_tap
+        value: "true"
+- name: kmod.if_bridge
+  filter:
+    fact:
+      name: libvirt.driver.bhyve
+      value: "true"
+  report:
+    message: BHyve VMs can use bridged network
+  hint:
+    message: load the 'if_bridge' kernel module
+  value:
+    bool:
+      fact:
+        name: os.kmod.if_bridge
+        value: "true"
+- name: kmod.nmdm
+  filter:
+    fact:
+      name: libvirt.driver.bhyve
+      value: "true"
+  report:
+    message: BHyve VMs can use nmdm console
+    level: warn
+  hint:
+    message: load the 'nmdm' kernel module
+  value:
+    bool:
+      fact:
+        name: os.kmod.nmdm
+        value: "true"

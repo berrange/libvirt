@@ -1,0 +1,50 @@
+#
+# Define facts related to host CPU properties
+#
+
+facts:
+- name: cpu.family.x86
+  value:
+    bool:
+      any:
+        expressions:
+        - fact:
+            name: cpu.arch
+            value: x86_64
+        - fact:
+            name: cpu.arch
+            value: i386
+        - fact:
+            name: cpu.arch
+            value: i486
+        - fact:
+            name: cpu.arch
+            value: i586
+        - fact:
+            name: cpu.arch
+            value: i686
+- name: cpu.family.arm
+  value:
+    bool:
+      any:
+        expressions:
+        - fact:
+            name: cpu.arch
+            value: aarch64
+        - fact:
+            name: cpu.arch
+            value: armv6
+        - fact:
+            name: cpu.arch
+            value: armv7
+- name: cpu.family.s390
+  value:
+    bool:
+      any:
+        expressions:
+        - fact:
+            name: cpu.arch
+            value: s390
+        - fact:
+            name: cpu.arch
+            value: s390x

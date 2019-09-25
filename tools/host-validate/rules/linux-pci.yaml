@@ -1,0 +1,10 @@
+#
+# Define facts related to physical PCI devices on the host system
+#
+
+facts:
+- name: os.pci.devices
+  value:
+    dirent:
+      path: /sys/bus/pci/devices
+      ignoreMissing: true

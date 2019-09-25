@@ -1,0 +1,470 @@
+#
+# Define facts for Linux control cgroups v1/v2
+#
+
+facts:
+- name: os.cgroup.controller
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    file:
+      path: /proc/cgroups
+      parse:
+        set:
+          separator: \n
+          skiphead: 1
+          skiptail: 1
+          regex: ^(\w+)
+          match: 1
+- name: os.cgroup.v2only
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    access:
+      check: exists
+      path: /sys/fs/cgroup/cgroup.subtree_control
+- name: os.cgroup.v2hybrid
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    file:
+      path: /sys/fs/cgroup/unified/cgroup.controllers
+      ignoreMissing: true
+      parse:
+        whitespace: trim
+        set:
+          skiphead: 0
+          skiptail: 0
+          separator: ' '
+- name: os.cgroup.mount.v2
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    file:
+      path: /sys/fs/cgroup/cgroup.controllers
+      ignoreMissing: true
+      parse:
+        whitespace: trim
+        set:
+          skiphead: 0
+          skiptail: 0
+          separator: ' '
+- name: os.cgroup.mount.v1.blkio
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    access:
+      check: exists
+      path: /sys/fs/cgroup/blkio/cgroup.procs
+- name: os.cgroup.mount.v1.cpu
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    access:
+      check: exists
+      path: /sys/fs/cgroup/cpu/cgroup.procs
+- name: os.cgroup.mount.v1.cpuacct
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    access:
+      check: exists
+      path: /sys/fs/cgroup/cpuacct/cgroup.procs
+- name: os.cgroup.mount.v1.cpuset
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    access:
+      check: exists
+      path: /sys/fs/cgroup/cpuset/cgroup.procs
+- name: os.cgroup.mount.v1.devices
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    access:
+      check: exists
+      path: /sys/fs/cgroup/devices/cgroup.procs
+- name: os.cgroup.mount.v1.freezer
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    access:
+      check: exists
+      path: /sys/fs/cgroup/freezer/cgroup.procs
+- name: os.cgroup.mount.v1.hugetlb
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    access:
+      check: exists
+      path: /sys/fs/cgroup/hugetlb/cgroup.procs
+- name: os.cgroup.mount.v1.memory
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    access:
+      check: exists
+      path: /sys/fs/cgroup/memory/cgroup.procs
+- name: os.cgroup.mount.v1.net_cls
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    access:
+      check: exists
+      path: /sys/fs/cgroup/net_cls/cgroup.procs
+- name: os.cgroup.mount.v1.net_prio
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    access:
+      check: exists
+      path: /sys/fs/cgroup/net_prio/cgroup.procs
+- name: os.cgroup.mount.v1.perf_event
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    access:
+      check: exists
+      path: /sys/fs/cgroup/perf_event/cgroup.procs
+- name: os.cgroup.mount.v1.pids
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    access:
+      check: exists
+      path: /sys/fs/cgroup/pids/cgroup.procs
+- name: os.cgroup.mount.unified
+  filter:
+    fact:
+      name: os.kernel
+      value: Linux
+  value:
+    access:
+      check: exists
+      path: /sys/fs/cgroup/unified/cgroup.procs
+- name: os.cgroup.memory.present
+  filter:
+    all:
+      expressions:
+      - any:
+          expressions:
+          - fact:
+              name: libvirt.driver.lxc
+              value: "true"
+          - fact:
+              name: libvirt.driver.qemu
+              value: "true"
+      - fact:
+          name: os.kernel
+          value: Linux
+  report:
+    message: cgroup memory controller present
+  hint:
+    message: enable memory cgroup controller in Kconfig
+  value:
+    bool:
+      fact:
+        name: os.cgroup.controller.memory
+        value: "true"
+- name: os.cgroup.memory.mounted
+  filter:
+    fact:
+      name: os.cgroup.memory.present
+      value: "true"
+  report:
+    message: cgroup memory controller mounted
+  hint:
+    message: mount the memory cgroup controller under /sys/fs/cgroup
+  value:
+    bool:
+      any:
+        expressions:
+        - fact:
+            name: os.cgroup.mount.v1.memory
+            value: "true"
+        - fact:
+            name: os.cgroup.mount.v2.memory
+            value: "true"
+- name: os.cgroup.cpu.present
+  filter:
+    all:
+      expressions:
+      - any:
+          expressions:
+          - fact:
+              name: libvirt.driver.lxc
+              value: "true"
+          - fact:
+              name: libvirt.driver.qemu
+              value: "true"
+      - fact:
+          name: os.kernel
+          value: Linux
+  report:
+    message: cgroup cpu controller present
+  hint:
+    message: enable cpu cgroup controller in Kconfig
+  value:
+    bool:
+      fact:
+        name: os.cgroup.controller.cpu
+        value: "true"
+- name: os.cgroup.cpu.mounted
+  filter:
+    fact:
+      name: os.cgroup.cpu.present
+      value: "true"
+  report:
+    message: cgroup cpu controller mounted
+  hint:
+    message: mount the cpu cgroup controller under /sys/fs/cgroup
+  value:
+    bool:
+      any:
+        expressions:
+        - fact:
+            name: os.cgroup.mount.v1.cpu
+            value: "true"
+        - fact:
+            name: os.cgroup.mount.v2.cpu
+            value: "true"
+- name: os.cgroup.cpuacct.present
+  filter:
+    all:
+      expressions:
+      - fact:
+          name: libvirt.driver.lxc
+          value: "true"
+      - fact:
+          name: os.kernel
+          value: Linux
+  report:
+    message: cgroup cpuacct controller present
+  hint:
+    message: enable cpuacct cgroup controller in Kconfig
+  value:
+    bool:
+      fact:
+        name: os.cgroup.controller.cpuacct
+        value: "true"
+- name: os.cgroup.cpuacct.mounted
+  filter:
+    fact:
+      name: os.cgroup.cpuacct.present
+      value: "true"
+  report:
+    message: cgroup cpuacct controller mounted
+  hint:
+    message: mount the cpuacct cgroup controller under /sys/fs/cgroup
+  value:
+    bool:
+      any:
+        expressions:
+        - fact:
+            name: os.cgroup.mount.v1.cpuacct
+            value: "true"
+        - fact:
+            name: os.cgroup.mount.v2.cpuacct
+            value: "true"
+- name: os.cgroup.cpuset.present
+  filter:
+    all:
+      expressions:
+      - any:
+          expressions:
+          - fact:
+              name: libvirt.driver.lxc
+              value: "true"
+          - fact:
+              name: libvirt.driver.qemu
+              value: "true"
+      - fact:
+          name: os.kernel
+          value: Linux
+  report:
+    message: cgroup cpuset controller present
+  hint:
+    message: enable cpuset cgroup controller in Kconfig
+  value:
+    bool:
+      fact:
+        name: os.cgroup.controller.cpuset
+        value: "true"
+- name: os.cgroup.cpuset.mounted
+  filter:
+    fact:
+      name: os.cgroup.cpuset.present
+      value: "true"
+  report:
+    message: cgroup cpuset controller mounted
+  hint:
+    message: mount the cpuset cgroup controller under /sys/fs/cgroup
+  value:
+    bool:
+      any:
+        expressions:
+        - fact:
+            name: os.cgroup.mount.v1.cpuset
+            value: "true"
+        - fact:
+            name: os.cgroup.mount.v2.cpuset
+            value: "true"
+- name: os.cgroup.devices.present
+  filter:
+    all:
+      expressions:
+      - any:
+          expressions:
+          - fact:
+              name: libvirt.driver.lxc
+              value: "true"
+          - fact:
+              name: libvirt.driver.qemu
+              value: "true"
+      - fact:
+          name: os.kernel
+          value: Linux
+  report:
+    message: cgroup devices controller present
+  hint:
+    message: enable devices cgroup controller in Kconfig
+  value:
+    bool:
+      fact:
+        name: os.cgroup.controller.devices
+        value: "true"
+- name: os.cgroup.devices.mounted
+  filter:
+    fact:
+      name: os.cgroup.devices.present
+      value: "true"
+  report:
+    message: cgroup devices controller mounted
+  hint:
+    message: mount the devices cgroup controller under /sys/fs/cgroup
+  value:
+    bool:
+      any:
+        expressions:
+        - fact:
+            name: os.cgroup.mount.v1.devices
+            value: "true"
+        - fact:
+            name: os.cgroup.v2hybrid
+            value: "true"
+        - fact:
+            name: os.cgroup.v2only
+            value: "true"
+- name: os.cgroup.blkio.present
+  filter:
+    all:
+      expressions:
+      - any:
+          expressions:
+          - fact:
+              name: libvirt.driver.lxc
+              value: "true"
+          - fact:
+              name: libvirt.driver.qemu
+              value: "true"
+      - fact:
+          name: os.kernel
+          value: Linux
+  report:
+    message: cgroup blkio controller present
+  hint:
+    message: enable blkio cgroup controller in Kconfig
+  value:
+    bool:
+      fact:
+        name: os.cgroup.controller.blkio
+        value: "true"
+- name: os.cgroup.blkio.mounted
+  filter:
+    fact:
+      name: os.cgroup.blkio.present
+      value: "true"
+  report:
+    message: cgroup blkio controller mounted
+  hint:
+    message: mount the blkio cgroup controller under /sys/fs/cgroup
+  value:
+    bool:
+      any:
+        expressions:
+        - fact:
+            name: os.cgroup.mount.v1.blkio
+            value: "true"
+        - fact:
+            name: os.cgroup.mount.v2.io
+            value: "true"
+- name: os.cgroup.freezer.present
+  filter:
+    all:
+      expressions:
+      - fact:
+          name: libvirt.driver.lxc
+          value: "true"
+      - fact:
+          name: os.kernel
+          value: Linux
+  report:
+    message: cgroup freezer controller present
+  hint:
+    message: enable freezer cgroup controller in Kconfig
+  value:
+    bool:
+      fact:
+        name: os.cgroup.controller.freezer
+        value: "true"
+- name: os.cgroup.freezer.mounted
+  filter:
+    fact:
+      name: os.cgroup.freezer.present
+      value: "true"
+  report:
+    message: cgroup freezer controller mounted
+  hint:
+    message: mount the freezer cgroup controller under /sys/fs/cgroup
+  value:
+    bool:
+      any:
+        expressions:
+        - fact:
+            name: os.cgroup.mount.v1.freezer
+            value: "true"
+        - fact:
+            name: os.cgroup.mount.v2.freezer
+            value: "true"
