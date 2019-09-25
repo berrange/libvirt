@@ -157,50 +157,41 @@ libvirt_shell_la_SOURCES = \
 		vsh-table.c vsh-table.h
 
 virt_host_validate_SOURCES = \
-		virt-host-validate.c \
-		virt-host-validate-common.c virt-host-validate-common.h
+	$(srcdir)/host-validate/go.mod \
+	$(srcdir)/host-validate/go.sum \
+	$(srcdir)/host-validate/main.go \
+	$(srcdir)/host-validate/pkg/facts.go \
+	$(srcdir)/host-validate/pkg/facts_test.go \
+	$(srcdir)/host-validate/pkg/engine.go \
+	$(NULL)
 
-VIRT_HOST_VALIDATE_QEMU = \
-		virt-host-validate-qemu.c \
-		virt-host-validate-qemu.h
-VIRT_HOST_VALIDATE_LXC = \
-		virt-host-validate-lxc.c \
-		virt-host-validate-lxc.h
-VIRT_HOST_VALIDATE_BHYVE = \
-		virt-host-validate-bhyve.c \
-		virt-host-validate-bhyve.h
-if WITH_QEMU
-virt_host_validate_SOURCES += $(VIRT_HOST_VALIDATE_QEMU)
-else ! WITH_QEMU
-EXTRA_DIST += $(VIRT_HOST_VALIDATE_QEMU)
-endif ! WITH_QEMU
+virt_host_validate_rulesdir = $(pkgdatadir)/host-validate
+virt_host_validate_rules_DATA = \
+	$(srcdir)/host-validate/rules/builtin.yaml \
+	$(srcdir)/host-validate/rules/cpu.yaml \
+	$(srcdir)/host-validate/rules/freebsd-kernel.yaml \
+	$(srcdir)/host-validate/rules/linux-acpi.yaml \
+	$(srcdir)/host-validate/rules/linux-cgroups.yaml \
+	$(srcdir)/host-validate/rules/linux-cpu.yaml \
+	$(srcdir)/host-validate/rules/linux-devices.yaml \
+	$(srcdir)/host-validate/rules/linux-iommu.yaml \
+	$(srcdir)/host-validate/rules/linux-namespaces.yaml \
+	$(srcdir)/host-validate/rules/linux-pci.yaml \
+	$(NULL)
 
-if WITH_LXC
-virt_host_validate_SOURCES += $(VIRT_HOST_VALIDATE_LXC)
-else ! WITH_LXC
-EXTRA_DIST += $(VIRT_HOST_VALIDATE_LXC)
-endif ! WITH_LXC
+EXTRA_DIST += $(virt_host_validate_rules_DATA) $(virt_host_validate_SOURCES)
 
-if WITH_BHYVE
-virt_host_validate_SOURCES += $(VIRT_HOST_VALIDATE_BHYVE)
-else ! WITH_BHYVE
-EXTRA_DIST += $(VIRT_HOST_VALIDATE_BHYVE)
-endif ! WITH_BHYVE
+virt-host-validate$(EXEEXT): $(virt_host_validate_SOURCES)
+	$(AM_V_CC) cd $(srcdir)/host-validate && \
+		$(GO) build $(GOBUILDFLAGS) -o $(abs_builddir)/$@ main.go
+if WITH_HOST_VALIDATE
+check-host-validate:
+	cd $(srcdir)/host-validate && $(GO) test $(GOTESTFLAGS) ./...
+else ! WITH_HOST_VALIDATE
+check-host-validate:
+endif ! WITH_HOST_VALIDATE
 
-virt_host_validate_LDFLAGS = \
-		$(AM_LDFLAGS) \
-		$(PIE_LDFLAGS) \
-		$(COVERAGE_LDFLAGS) \
-		$(NULL)
-
-virt_host_validate_LDADD = \
-		../src/libvirt.la \
-		../gnulib/lib/libgnu.la \
-		$(NULL)
-
-virt_host_validate_CFLAGS = \
-		$(AM_CFLAGS) \
-		$(NULL)
+check-local: check-host-validate
 
 # virt-login-shell will be setuid, and must not link to anything
 # except glibc. It wil scrub the environment and then invoke the

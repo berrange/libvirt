@@ -21,14 +21,14 @@ AC_DEFUN([LIBVIRT_ARG_HOST_VALIDATE], [
 
 AC_DEFUN([LIBVIRT_CHECK_HOST_VALIDATE], [
   if test "x$with_host_validate" != "xno"; then
-    if test "x$with_win" = "xyes"; then
+    if test "$with_go" = "no"; then
       if test "x$with_host_validate" = "xyes"; then
-        AC_MSG_ERROR([virt-host-validate is not supported on Windows])
+        AC_MSG_ERROR([Cannot build virt-host-validate without Go toolchain])
       else
-        with_host_validate=no;
+        with_host_validate=no
       fi
     else
-      with_host_validate=yes;
+      with_host_validate=yes
     fi
   fi
 

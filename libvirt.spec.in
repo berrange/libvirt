@@ -402,6 +402,9 @@ BuildRequires: firewalld-filesystem
 %endif
 
 BuildRequires: golang >= 1.11
+BuildRequires: golang-ipath(github.com/spf13/pflag)
+BuildRequires: golang-ipath(golang.org/x/sys)
+BuildRequires: golang-ipath(github.com/ghodss/yaml)
 
 Provides: bundled(gnulib)
 
@@ -1167,6 +1170,7 @@ export SOURCE_DATE_EPOCH=$(stat --printf='%Y' %{_specdir}/%{name}.spec)
 # must make a local Go root with the old style
 # dir naming scheme/hierarchy
 mkdir -p gocode/src/libvirt.org
+ln -s `pwd`/tools/host-validate `pwd`/gocode/src/libvirt.org/host-validate
 
 export GO111MODULE=off
 export GOPATH=/usr/share/gocode:`pwd`/gocode
@@ -1890,6 +1894,17 @@ exit 0
 %if %{with_qemu}
 %{_datadir}/systemtap/tapset/libvirt_qemu_probes*.stp
 %endif
+%dir %{_datadir}/libvirt/host-validate
+%{_datadir}/libvirt/host-validate/builtin.yaml
+%{_datadir}/libvirt/host-validate/cpu.yaml
+%{_datadir}/libvirt/host-validate/freebsd-kernel.yaml
+%{_datadir}/libvirt/host-validate/linux-acpi.yaml
+%{_datadir}/libvirt/host-validate/linux-cgroups.yaml
+%{_datadir}/libvirt/host-validate/linux-cpu.yaml
+%{_datadir}/libvirt/host-validate/linux-devices.yaml
+%{_datadir}/libvirt/host-validate/linux-iommu.yaml
+%{_datadir}/libvirt/host-validate/linux-namespaces.yaml
+%{_datadir}/libvirt/host-validate/linux-pci.yaml
 
 %if %{with_bash_completion}
 %{_datadir}/bash-completion/completions/virsh
