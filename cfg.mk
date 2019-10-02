@@ -1209,7 +1209,7 @@ exclude_file_name_regexp--sc_copyright_format = \
 	^cfg\.mk$$
 
 exclude_file_name_regexp--sc_copyright_usage = \
-  ^COPYING(|\.LESSER)$$
+  ^(COPYING(|\.LESSER))|maint\.mk$$
 
 exclude_file_name_regexp--sc_flags_usage = \
   ^(cfg\.mk|docs/|src/util/virnetdevtap\.c$$|tests/((vir(cgroup|pci|test|usb)|nss|qemuxml2argv|qemusecurity)mock|virfilewrapper)\.c$$)
