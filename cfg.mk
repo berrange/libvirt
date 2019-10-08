@@ -1295,7 +1295,7 @@ exclude_file_name_regexp--sc_trailing_blank = \
   /sysinfodata/.*\.data|/virhostcpudata/.*\.cpuinfo|^gnulib/local/.*/.*diff$$
 
 exclude_file_name_regexp--sc_unmarked_diagnostics = \
-  ^(docs/apibuild.py|tests/virt-aa-helper-test|docs/js/.*\.js)$$
+  ^(scripts/apibuild.py|tests/virt-aa-helper-test|docs/js/.*\.js)$$
 
 exclude_file_name_regexp--sc_size_of_brackets = cfg.mk
 
