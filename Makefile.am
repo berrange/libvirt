@@ -64,6 +64,7 @@ EXTRA_DIST = \
   scripts/group-qemu-caps.py \
   scripts/header-ifdef.py \
   scripts/hvsupport.py \
+  scripts/hyperv_wmi_generator.py \
   scripts/minimize-po.py \
   scripts/mock-noinline.py \
   scripts/prohibit-duplicate-header.py \
