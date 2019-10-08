@@ -43,7 +43,6 @@ ESX_DRIVER_GENERATED = \
 ESX_DRIVER_EXTRA_DIST = \
 	esx/README \
 	esx/esx_vi_generator.input \
-	esx/esx_vi_generator.py \
 	$(ESX_DRIVER_GENERATED) \
 	$(NULL)
 
@@ -62,9 +61,9 @@ BUILT_SOURCES += $(ESX_DRIVER_GENERATED)
 $(ESX_DRIVER_GENERATED): $(ESX_GENERATED_STAMP)
 
 $(ESX_GENERATED_STAMP): $(srcdir)/esx/esx_vi_generator.input \
-                         $(srcdir)/esx/esx_vi_generator.py
+                         $(top_srcdir)/scripts/esx_vi_generator.py
 	$(AM_V_GEN)srcdir=$(srcdir) $(RUNUTF8) $(PYTHON) \
-		$(srcdir)/esx/esx_vi_generator.py && touch $@
+		$(top_srcdir)/scripts/esx_vi_generator.py && touch $@
 
 MAINTAINERCLEANFILES += $(ESX_DRIVER_GENERATED) $(ESX_GENERATED_STAMP)
 
