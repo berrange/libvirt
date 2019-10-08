@@ -811,13 +811,17 @@ sc_require_enum_last_marker:
 	  { echo '$(ME): enum impl needs _LAST marker on second line' 1>&2; \
 	    exit 1; } || :
 
-# Validate many python style rules
+# Force breaking lines at < 80 characters results in
+# some really unnatural code formatting which harms
+# readability.
 FLAKE8_LINE_LENGTH = E501
+
+# Knuth code style requires the operators "or" and "and" etc
+# to be at the start of line in a multi-line conditional.
+# This the opposite to what is normal libvirt practice.
 FLAKE8_WARNINGS = W504
 
-FLAKE8_IGNORE = $(FLAKE8_LINE_LENGTH),$\
-		$(FLAKE8_WARNINGS) \
-		$(NULL)
+FLAKE8_IGNORE = $(FLAKE8_LINE_LENGTH)$(FLAKE8_WARNINGS)
 
 sc_flake8:
 	@if [ -n "$(FLAKE8)" ]; then \
