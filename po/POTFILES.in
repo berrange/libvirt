@@ -240,7 +240,6 @@
 @SRCDIR@/src/util/virerror.h
 @SRCDIR@/src/util/virevent.c
 @SRCDIR@/src/util/vireventglib.c
-@SRCDIR@/src/util/vireventpoll.c
 @SRCDIR@/src/util/virfcp.c
 @SRCDIR@/src/util/virfdstream.c
 @SRCDIR@/src/util/virfile.c

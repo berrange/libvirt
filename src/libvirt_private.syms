@@ -1929,19 +1929,6 @@ virEventGLibRegister;
 virEventGLibRunOnce;
 
 
-# util/vireventpoll.h
-virEventPollAddHandle;
-virEventPollAddTimeout;
-virEventPollFromNativeEvents;
-virEventPollInit;
-virEventPollRemoveHandle;
-virEventPollRemoveTimeout;
-virEventPollRunOnce;
-virEventPollToNativeEvents;
-virEventPollUpdateHandle;
-virEventPollUpdateTimeout;
-
-
 # util/virfcp.h
 virFCIsCapableRport;
 virFCReadRportValue;
