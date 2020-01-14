@@ -3371,6 +3371,7 @@ virGetGroupList;
 virGetGroupName;
 virGetHostname;
 virGetHostnameQuiet;
+virGetPassword;
 virGetSelfLastChanged;
 virGetSystemPageSize;
 virGetSystemPageSizeKB;
