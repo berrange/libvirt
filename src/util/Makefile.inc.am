@@ -63,6 +63,8 @@ UTIL_SOURCES = \
 	util/virerrorpriv.h \
 	util/virevent.c \
 	util/virevent.h \
+	util/vireventglib.c \
+	util/vireventglib.h \
 	util/vireventpoll.c \
 	util/vireventpoll.h \
 	util/virfcp.c \
