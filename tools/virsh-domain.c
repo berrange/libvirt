@@ -23,7 +23,6 @@
 #include "virsh-util.h"
 
 #include <fcntl.h>
-#include <poll.h>
 #include <signal.h>
 #include <sys/time.h>
 
@@ -4287,8 +4286,8 @@ virshWatchJob(vshControl *ctl,
 {
     struct sigaction sig_action;
     struct sigaction old_sig_action;
-    struct pollfd pollfd[2] = {{.fd = pipe_fd, .events = POLLIN, .revents = 0},
-                               {.fd = STDIN_FILENO, .events = POLLIN, .revents = 0}};
+    GPollFD pollfd[2] = {{.fd = pipe_fd, .events = G_IO_IN, .revents = 0},
+                         {.fd = STDIN_FILENO, .events = G_IO_IN, .revents = 0}};
     unsigned long long start_us, curr_us;
     virDomainJobInfo jobinfo;
     int ret = -1;
@@ -4296,7 +4295,7 @@ virshWatchJob(vshControl *ctl,
     bool functionReturn = false;
     sigset_t sigmask, oldsigmask;
     bool jobStarted = false;
-    nfds_t npollfd = 2;
+    int npollfd = 2;
 
     sigemptyset(&sigmask);
     sigaddset(&sigmask, SIGINT);
@@ -4313,16 +4312,16 @@ virshWatchJob(vshControl *ctl,
 
     start_us = g_get_real_time();
     while (1) {
-        ret = poll((struct pollfd *)&pollfd, npollfd, 500);
+        ret = g_poll(pollfd, npollfd, 500);
         if (ret > 0) {
-            if (pollfd[1].revents & POLLIN &&
+            if (pollfd[1].revents & G_IO_IN &&
                 saferead(STDIN_FILENO, &retchar, sizeof(retchar)) > 0) {
                 if (vshTTYIsInterruptCharacter(ctl, retchar))
                     virDomainAbortJob(dom);
                 continue;
             }
 
-            if (pollfd[0].revents & POLLIN &&
+            if (pollfd[0].revents & G_IO_IN &&
                 saferead(pipe_fd, &retchar, sizeof(retchar)) > 0 &&
                 retchar == '0') {
                 if (verbose) {
