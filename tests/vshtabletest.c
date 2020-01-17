@@ -155,14 +155,12 @@ testUnicodeArabic(const void *opaque G_GNUC_UNUSED)
         " 1              ﻉﺪﻴﻟ ﺎﻠﺜﻘﻴﻟ ﻕﺎﻣ ﻊﻧ, ٣٠ ﻎﻴﻨﻳﺍ ﻮﺘﻧﺎﻤﺗ ﺎﻠﺛﺎﻠﺛ، ﺄﺳﺭ, ﺩﻮﻟ   ﺩﻮﻟ. ﺄﻣﺎﻣ ﺍ ﺎﻧ ﻲﻜﻧ\n"
         " ﺺﻔﺣﺓ           ﺖﻜﺘﻴﻛﺍً ﻊﻟ, ﺎﻠﺠﻧﻭﺩ ﻭﺎﻠﻌﺗﺍﺩ                              ﺵﺭ\n";
     vshTablePtr table;
-    wchar_t wc;
 
     /* If this char is not classed as printable, the actual
      * output won't match what this test expects. The code
      * is still operating correctly, but we have different
      * layout */
-    mbrtowc(&wc, "،", MB_CUR_MAX, NULL);
-    if (!iswprint(wc))
+    if (!g_unichar_isprint(g_utf8_get_char(",")))
         return EXIT_AM_SKIP;
 
     table = vshTableNew("ﻡﺍ ﻢﻣﺍ ﻕﺎﺌﻣﺓ", "ﺓ ﺎﻠﺼﻋ", "ﺍﻸﺜﻧﺎﻧ", NULL);
@@ -197,14 +195,12 @@ testUnicodeZeroWidthChar(const void *opaque G_GNUC_UNUSED)
         " 1\u200B    fedora28   run\u200Bning\n"
         " 2    rhel7.5    running\n";
     char *act = NULL;
-    wchar_t wc;
 
     /* If this char is not classed as printable, the actual
      * output won't match what this test expects. The code
      * is still operating correctly, but we have different
      * layout */
-    mbrtowc(&wc, "\u200B", MB_CUR_MAX, NULL);
-    if (!iswprint(wc))
+    if (!g_unichar_isprint(g_utf8_get_char("\u200B")))
         return EXIT_AM_SKIP;
 
     table = vshTableNew("I\u200Bd", "Name", "\u200BStatus", NULL);
