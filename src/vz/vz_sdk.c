@@ -1456,7 +1456,7 @@ prlsdkConvertCpuInfo(PRL_HANDLE sdkdom,
                      virDomainDefPtr def,
                      virDomainXMLOptionPtr xmlopt)
 {
-    char *buf;
+    char *buf = NULL;
     int hostcpus;
     PRL_UINT32 cpuCount;
     PRL_RESULT pret;

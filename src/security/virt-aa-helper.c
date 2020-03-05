@@ -264,7 +264,7 @@ static int
 create_profile(const char *profile, const char *profile_name,
                const char *profile_files, int virtType)
 {
-    char *template;
+    char *template = NULL;
     char *tcontent = NULL;
     char *pcontent = NULL;
     char *replace_name = NULL;

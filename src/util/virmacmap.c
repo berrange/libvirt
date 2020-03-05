@@ -261,7 +261,7 @@ static int
 virMacMapWriteFileLocked(virMacMapPtr mgr,
                          const char *file)
 {
-    char *str;
+    char *str = NULL;
     int ret = -1;
 
     if (virMacMapDumpStrLocked(mgr, &str) < 0)
