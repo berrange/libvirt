@@ -21,7 +21,7 @@ matrix:
     - compiler: clang
       language: c
       os: osx
-      osx_image: xcode10.3
+      osx_image: xcode10.2
       env:
         - PATH="/usr/local/opt/gettext/bin:/usr/local/opt/ccache/libexec:/usr/local/opt/rpcgen/bin:$PATH"
         - PKG_CONFIG_PATH="/usr/local/opt/libxml2/lib/pkgconfig"
