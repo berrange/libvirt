@@ -10,7 +10,6 @@ addons:
   homebrew:
     update: true
     packages:
-      - ccache
       - rpcgen
       - xz
       - yajl
@@ -24,7 +23,7 @@ matrix:
 
 env:
   global:
-    - PATH="/usr/local/opt/gettext/bin:/usr/local/opt/ccache/libexec:/usr/local/opt/rpcgen/bin:/usr/local/sbin:$PATH"
+    - PATH="/usr/local/opt/gettext/bin:/usr/local/opt/rpcgen/bin:/usr/local/sbin:$PATH"
     - PKG_CONFIG_PATH="/usr/local/opt/libxml2/lib/pkgconfig"
 
 before_script:
