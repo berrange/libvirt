@@ -31,6 +31,7 @@ before_script:
   # Hack to blow away py2
   - brew link --overwrite python
   - find /usr/local/opt/libffi/lib
+  - brew info --installed --json
 
 script:
   # We can't run 'distcheck' or 'syntax-check' because they fail on
