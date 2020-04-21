@@ -30,6 +30,7 @@ env:
 before_script:
   # Hack to blow away py2
   - brew link --overwrite python
+  - find /usr/local/opt/libffi/lib
 
 script:
   # We can't run 'distcheck' or 'syntax-check' because they fail on
