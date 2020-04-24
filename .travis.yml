@@ -19,7 +19,7 @@ addons:
 matrix:
   include:
     - osx_image: xcode11.3
-    - osx_image: xcode10.3
+#    - osx_image: xcode10.3
 
 env:
   global:
@@ -29,15 +29,14 @@ env:
 before_script:
   - brew doctor
   - brew config
-  - brew info --json --installed
-  - find /usr/local/opt/libffi/lib
   - for i in `find /usr/local | grep .dylib` ; do echo $i ; otool -L $i ; echo ; echo ; done
 
 script:
   # We can't run 'distcheck' or 'syntax-check' because they fail on
   # macOS, but doing 'install' and 'dist' gives us some useful coverage
   - mkdir build && cd build
-  - ../autogen.sh --prefix=$(pwd)/install-root && cat config.log && make -j3 V=1 && make -j3 install && make -j3 dist
+  - ARGS="--without-libvirtd --without-vmware --without-esx --without-curl --without-libpcap --without-libssh --without-yajl"
+  - ../autogen.sh --prefix=$(pwd)/install-root $ARGS && cat config.log && make -j3 V=1 && make -j3 install && make -j3 dist
 
 git:
   submodules: true
