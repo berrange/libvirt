@@ -31,7 +31,7 @@ before_script:
   # "update" only upgrades the toolchain, but we must
   # upgrade the formula too, otherwise the new bits we
   # installed might conflict
-  - homebrew upgrade
+  - brew upgrade
 
 script:
   # We can't run 'distcheck' or 'syntax-check' because they fail on
