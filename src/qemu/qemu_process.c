@@ -4981,12 +4981,8 @@ qemuProcessSetupRawIO(virQEMUDriverPtr driver,
         virDomainDeviceDef dev;
         virDomainDiskDefPtr disk = vm->def->disks[i];
 
-        if (disk->rawio == VIR_TRISTATE_BOOL_YES) {
+        if (disk->rawio == VIR_TRISTATE_BOOL_YES)
             rawio = true;
-#ifndef CAP_SYS_RAWIO
-            break;
-#endif
-        }
 
         dev.type = VIR_DOMAIN_DEVICE_DISK;
         dev.data.disk = disk;
@@ -5015,16 +5011,8 @@ qemuProcessSetupRawIO(virQEMUDriverPtr driver,
     ret = 0;
 
  cleanup:
-    if (rawio) {
-#ifdef CAP_SYS_RAWIO
-        if (ret == 0)
-            virCommandAllowCap(cmd, CAP_SYS_RAWIO);
-#else
-        virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
-                       _("Raw I/O is not supported on this platform"));
-        ret = -1;
-#endif
-    }
+    if (rawio && ret == 0)
+        virCommandAllowCap(cmd, CAP_SYS_RAWIO);
     return ret;
 }
 
