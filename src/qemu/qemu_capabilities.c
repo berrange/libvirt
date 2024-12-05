@@ -728,6 +728,7 @@ VIR_ENUM_IMPL(virQEMUCaps,
               "machine.virt.aia", /* QEMU_CAPS_MACHINE_VIRT_AIA */
               "virtio-mem-ccw", /* QEMU_CAPS_DEVICE_VIRTIO_MEM_CCW */
               "blockdev-set-active", /* QEMU_CAPS_BLOCKDEV_SET_ACTIVE */
+              "tdx-guest", /* QEMU_CAPS_TDX_GUEST */
     );
 
 
@@ -1418,6 +1419,7 @@ struct virQEMUCapsStringFlags virQEMUCapsObjectTypes[] = {
     { "sev-snp-guest", QEMU_CAPS_SEV_SNP_GUEST },
     { "acpi-erst", QEMU_CAPS_DEVICE_ACPI_ERST },
     { "virtio-mem-ccw", QEMU_CAPS_DEVICE_VIRTIO_MEM_CCW },
+    { "tdx-guest", QEMU_CAPS_TDX_GUEST},
 };
 
 
@@ -5299,6 +5301,24 @@ virQEMUCapsKVMSupportsSecureGuestAMD(void)
 
 
 /*
+ * Check whether INTEL Trust Domain Extention (x86) is enabled
+ */
+static bool
+virQEMUCapsKVMSupportsSecureGuestINTEL(void)
+{
+    g_autofree char *modValue = NULL;
+
+    if (virFileReadValueString(&modValue, "/sys/module/kvm_intel/parameters/tdx") < 0)
+        return false;
+
+    if (modValue[0] != 'Y')
+        return false;
+
+    return true;
+}
+
+
+/*
  * Check whether the secure guest functionality is enabled.
  * See the specific architecture function for details on the verifications made.
  */
@@ -5311,7 +5331,8 @@ virQEMUCapsKVMSupportsSecureGuest(void)
         return virQEMUCapsKVMSupportsSecureGuestS390();
 
     if (ARCH_IS_X86(arch))
-        return virQEMUCapsKVMSupportsSecureGuestAMD();
+        return virQEMUCapsKVMSupportsSecureGuestAMD() ||
+               virQEMUCapsKVMSupportsSecureGuestINTEL();
 
     return false;
 }
@@ -6731,6 +6752,8 @@ virQEMUCapsFillDomainLaunchSecurity(virQEMUCaps *qemuCaps,
     if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_S390_PV_GUEST) &&
         virQEMUCapsGet(qemuCaps, QEMU_CAPS_MACHINE_CONFIDENTAL_GUEST_SUPPORT))
         VIR_DOMAIN_CAPS_ENUM_SET(launchSecurity->sectype, VIR_DOMAIN_LAUNCH_SECURITY_PV);
+    if (virQEMUCapsGet(qemuCaps, QEMU_CAPS_TDX_GUEST))
+        VIR_DOMAIN_CAPS_ENUM_SET(launchSecurity->sectype, VIR_DOMAIN_LAUNCH_SECURITY_TDX);
 
     if (launchSecurity->sectype.values == 0) {
         launchSecurity->supported = VIR_TRISTATE_BOOL_NO;
@@ -6937,6 +6960,18 @@ virQEMUCapsFillDomainFeatureHypervCaps(virQEMUCaps *qemuCaps,
 }
 
 
+static void
+virQEMUCapsFillDomainFeatureTDXCaps(virQEMUCaps *qemuCaps,
+                                    virDomainCaps *domCaps)
+{
+    if (domCaps->arch == VIR_ARCH_X86_64 &&
+        domCaps->virttype == VIR_DOMAIN_VIRT_KVM &&
+        virQEMUCapsGet(qemuCaps, QEMU_CAPS_TDX_GUEST) &&
+        virQEMUCapsGetKVMSupportsSecureGuest(qemuCaps))
+            domCaps->features[VIR_DOMAIN_CAPS_FEATURE_TDX] = VIR_TRISTATE_BOOL_YES;
+}
+
+
 int
 virQEMUCapsFillDomainCaps(virQEMUCaps *qemuCaps,
                           virArch hostarch,
@@ -7003,6 +7038,7 @@ virQEMUCapsFillDomainCaps(virQEMUCaps *qemuCaps,
     virQEMUCapsFillDomainLaunchSecurity(qemuCaps, launchSecurity);
     virQEMUCapsFillDomainDeviceNetCaps(qemuCaps, net);
     virQEMUCapsFillDomainDevicePanicCaps(qemuCaps, domCaps->machine, panic);
+    virQEMUCapsFillDomainFeatureTDXCaps(qemuCaps, domCaps);
 
     return 0;
 }

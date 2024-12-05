@@ -1370,6 +1370,9 @@ qemuFirmwareMatchDomain(const virDomainDef *def,
                 return false;
             }
             break;
+        case VIR_DOMAIN_LAUNCH_SECURITY_TDX:
+            /* TODO */
+            break;
         case VIR_DOMAIN_LAUNCH_SECURITY_PV:
             break;
         case VIR_DOMAIN_LAUNCH_SECURITY_NONE:

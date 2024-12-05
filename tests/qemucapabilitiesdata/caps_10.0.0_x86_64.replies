@@ -7018,6 +7018,10 @@
         {
           "case": "s390-pv-guest",
           "type": "0"
+        },
+        {
+          "case": "tdx-guest",
+          "type": "9999"
         }
       ],
       "members": [
@@ -14825,6 +14829,9 @@
           "name": "s390-pv-guest"
         },
         {
+          "name": "tdx-guest"
+        },
+        {
           "name": "throttle-group"
         },
         {
@@ -16320,6 +16327,37 @@
           "name": "passwordid",
           "default": null,
           "type": "str"
+        }
+      ],
+      "meta-type": "object"
+    },
+    {
+      "name": "9999",
+      "members": [
+        {
+          "name": "attributes",
+          "default": null,
+          "type": "int"
+        },
+        {
+          "name": "mrconfigid",
+          "default": null,
+          "type": "str"
+        },
+        {
+          "name": "mrowner",
+          "default": null,
+          "type": "str"
+        },
+        {
+          "name": "mrownerconfig",
+          "default": null,
+          "type": "str"
+        },
+        {
+          "name": "quote-generation-socket",
+          "default": null,
+          "type": "394"
         }
       ],
       "meta-type": "object"

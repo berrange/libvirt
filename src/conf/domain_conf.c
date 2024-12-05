@@ -1530,6 +1530,7 @@ VIR_ENUM_IMPL(virDomainLaunchSecurity,
               "sev",
               "sev-snp",
               "s390-pv",
+              "tdx",
 );
 
 VIR_ENUM_IMPL(virDomainPstoreBackend,
@@ -1543,6 +1544,15 @@ VIR_ENUM_IMPL(virDomainAIA,
               "none",
               "aplic",
               "aplic-imsic",
+);
+
+VIR_ENUM_IMPL(virDomainSocketAddress,
+              VIR_DOMAIN_SOCKET_ADDRESS_LAST,
+              "",
+              "inet",
+              "unix",
+              "vsock",
+              "fd",
 );
 
 typedef enum {
@@ -3890,6 +3900,10 @@ virDomainSecDefFree(virDomainSecDef *def)
         g_free(def->data.sev_snp.id_auth);
         g_free(def->data.sev_snp.host_data);
         break;
+    case VIR_DOMAIN_LAUNCH_SECURITY_TDX:
+        g_free(def->data.tdx.mrconfigid);
+        g_free(def->data.tdx.mrowner);
+        g_free(def->data.tdx.mrownerconfig);
     case VIR_DOMAIN_LAUNCH_SECURITY_PV:
     case VIR_DOMAIN_LAUNCH_SECURITY_NONE:
     case VIR_DOMAIN_LAUNCH_SECURITY_LAST:
@@ -13901,6 +13915,206 @@ virDomainSEVSNPDefParseXML(virDomainSEVSNPDef *def,
     return 0;
 }
 
+static int
+virDomainInetSocketAddressDefParseXML(InetSocketAddress *inet,
+                                      xmlNodePtr node)
+{
+    int ret;
+
+    if (!(inet->host = virXMLPropString(node, "host"))) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("missing host for inet socket address"));
+        return -1;
+    }
+
+    if (!(inet->port = virXMLPropString(node, "port"))) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("missing port for inet socket address"));
+        return -1;
+    }
+
+    if (virXMLPropTristateBool(node, "numeric", VIR_XML_PROP_NONE,
+                               &inet->numeric) < 0) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("wrong attribute numeric for inet socket address"));
+        return -1;
+    }
+
+    if ((ret = virXMLPropUInt(node, "to", 10, VIR_XML_PROP_NONE,
+                             &inet->to)) < 0) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("wrong attribute to for inet socket address"));
+        return -1;
+    }
+    if (!ret)
+        inet->has_to = true;
+
+    if (virXMLPropTristateBool(node, "ipv4", VIR_XML_PROP_NONE,
+                               &inet->ipv4) < 0) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("wrong attribute ipv4 for inet socket address"));
+        return -1;
+    }
+
+    if (virXMLPropTristateBool(node, "ipv6", VIR_XML_PROP_NONE,
+                               &inet->ipv6) < 0) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("wrong attribute ipv6 for inet socket address"));
+        return -1;
+    }
+
+    if (virXMLPropTristateBool(node, "keep_alive", VIR_XML_PROP_NONE,
+                               &inet->keep_alive) < 0) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("wrong attribute keep_alive for inet socket address"));
+        return -1;
+    }
+
+    if (virXMLPropTristateBool(node, "mptcp", VIR_XML_PROP_NONE,
+                               &inet->mptcp) < 0) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("wrong attribute mptcp for inet socket address"));
+        return -1;
+    }
+
+    return 0;
+}
+
+static int
+virDomainUnixSocketAddressDefParseXML(UnixSocketAddress *Unix,
+                                      xmlNodePtr node)
+{
+    if (!(Unix->path = virXMLPropString(node, "path"))) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("missing path for unix socket address"));
+        return -1;
+    }
+
+    if (virXMLPropTristateBool(node, "abstract", VIR_XML_PROP_NONE,
+                               &Unix->abstract) < 0) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("wrong attribute abstract for unix socket address"));
+        return -1;
+    }
+
+    if (virXMLPropTristateBool(node, "tight", VIR_XML_PROP_NONE,
+                               &Unix->tight) < 0) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("wrong attribute tight for unix socket address"));
+        return -1;
+    }
+
+    return 0;
+}
+
+
+static int
+virDomainVsockSocketAddressDefParseXML(VsockSocketAddress *vsock,
+                                       xmlNodePtr node)
+{
+    if (!(vsock->cid = virXMLPropString(node, "cid"))) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("missing cid for vsock socket address"));
+        return -1;
+    }
+
+    if (!(vsock->port = virXMLPropString(node, "port"))) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("missing port for vsock socket address"));
+        return -1;
+    }
+
+    return 0;
+}
+
+
+static int
+virDomainFdSocketAddressDefParseXML(FdSocketAddress *fd,
+                                    xmlNodePtr node)
+{
+    if (!(fd->str = virXMLPropString(node, "str"))) {
+        virReportError(VIR_ERR_INTERNAL_ERROR, "%s",
+                       _("missing fd for fd socket address"));
+        return -1;
+    }
+
+    return 0;
+}
+
+
+static int
+virDomainTDXQGSDefParseXML(virDomainTDXDef *def, xmlXPathContextPtr ctxt)
+{
+    g_autofree xmlNodePtr *nodes = NULL;
+    SocketAddress *sa = &def->qgs_sa;
+    xmlNodePtr node;
+    int n;
+
+    if ((n = virXPathNodeSet("./quoteGenerationService/SocketAddress",
+                             ctxt, &nodes)) < 0)
+        return -1;
+
+    if (!n)
+        return 0;
+
+    if (n > 1) {
+        virReportError(VIR_ERR_XML_ERROR, "%s",
+                       _("only a single QGS element is supported"));
+        return -1;
+    }
+    node = nodes[0];
+
+    if (virXMLPropEnum(node, "type", virDomainSocketAddressTypeFromString,
+                       VIR_XML_PROP_REQUIRED, &sa->type) < 0)
+        return -1;
+
+    switch ((virDomainSocketAddress) def->qgs_sa.type) {
+    case VIR_DOMAIN_SOCKET_ADDRESS_INET:
+        if (virDomainInetSocketAddressDefParseXML(&sa->u.inet, node) < 0)
+            return -1;
+        break;
+    case VIR_DOMAIN_SOCKET_ADDRESS_UNIX:
+        if (virDomainUnixSocketAddressDefParseXML(&sa->u.Unix, node) < 0)
+            return -1;
+        break;
+    case VIR_DOMAIN_SOCKET_ADDRESS_VSOCK:
+        if (virDomainVsockSocketAddressDefParseXML(&sa->u.vsock, node) < 0)
+            return -1;
+        break;
+    case VIR_DOMAIN_SOCKET_ADDRESS_FD:
+        if (virDomainFdSocketAddressDefParseXML(&sa->u.fd, node) < 0)
+            return -1;
+        break;
+    case VIR_DOMAIN_SOCKET_ADDRESS_NONE:
+    case VIR_DOMAIN_SOCKET_ADDRESS_LAST:
+    default:
+        virReportError(VIR_ERR_XML_ERROR,
+                       _("unsupported socket address type '%1$s'"),
+                       virDomainSocketAddressTypeToString(def->qgs_sa.type));
+        return -1;
+    }
+
+    return 0;
+}
+
+
+static int
+virDomainTDXDefParseXML(virDomainTDXDef *def,
+                        xmlXPathContextPtr ctxt)
+{
+    if (virXPathULongLongBase("string(./policy)", ctxt, 16, &def->policy) < 0) {
+        virReportError(VIR_ERR_XML_ERROR, "%s",
+                       _("failed to get launch security policy for launch security type TDX"));
+        return -1;
+    }
+
+    def->mrconfigid = virXPathString("string(./mrConfigId)", ctxt);
+    def->mrowner = virXPathString("string(./mrOwner)", ctxt);
+    def->mrownerconfig = virXPathString("string(./mrOwnerConfig)", ctxt);
+
+    return virDomainTDXQGSDefParseXML(def, ctxt);
+}
+
 
 static virDomainSecDef *
 virDomainSecDefParseXML(xmlNodePtr lsecNode,
@@ -13923,6 +14137,10 @@ virDomainSecDefParseXML(xmlNodePtr lsecNode,
         break;
     case VIR_DOMAIN_LAUNCH_SECURITY_SEV_SNP:
         if (virDomainSEVSNPDefParseXML(&sec->data.sev_snp, ctxt) < 0)
+            return NULL;
+        break;
+    case VIR_DOMAIN_LAUNCH_SECURITY_TDX:
+        if (virDomainTDXDefParseXML(&sec->data.tdx, ctxt) < 0)
             return NULL;
         break;
     case VIR_DOMAIN_LAUNCH_SECURITY_PV:
@@ -27198,6 +27416,81 @@ virDomainSEVSNPDefFormat(virBuffer *attrBuf,
     virBufferEscapeString(childBuf, "<hostData>%s</hostData>\n", def->host_data);
 }
 
+static void
+virDomainTDXQGSDefFormat(virBuffer *buf, virDomainTDXDef *tdx)
+{
+    SocketAddress *sa = &tdx->qgs_sa;
+
+    if (sa->type == VIR_DOMAIN_SOCKET_ADDRESS_NONE)
+        return;
+
+    virBufferAddLit(buf, "<quoteGenerationService>\n");
+    virBufferAdjustIndent(buf, 2);
+    virBufferAsprintf(buf, "<SocketAddress type='%s'",
+                      virDomainSocketAddressTypeToString(sa->type));
+
+    switch ((virDomainSocketAddress) sa->type) {
+    case VIR_DOMAIN_SOCKET_ADDRESS_INET:
+    {
+        InetSocketAddress *inet = &sa->u.inet;
+
+        virBufferAsprintf(buf, " host='%s' port='%s'", inet->host, inet->port);
+        if (inet->numeric != VIR_TRISTATE_BOOL_ABSENT)
+            virBufferAsprintf(buf, " numeric='%s'",
+                              virTristateBoolTypeToString(inet->numeric));
+        if (inet->to)
+            virBufferAsprintf(buf, " to='%d'", inet->to);
+        if (inet->ipv4 != VIR_TRISTATE_BOOL_ABSENT)
+            virBufferAsprintf(buf, " ipv4='%s'",
+                              virTristateBoolTypeToString(inet->ipv4));
+        if (inet->ipv6 != VIR_TRISTATE_BOOL_ABSENT)
+            virBufferAsprintf(buf, " ipv6='%s'",
+                              virTristateBoolTypeToString(inet->ipv6));
+        if (inet->keep_alive != VIR_TRISTATE_BOOL_ABSENT)
+            virBufferAsprintf(buf, " keep_alive='%s'",
+                              virTristateBoolTypeToString(inet->keep_alive));
+        if (inet->mptcp != VIR_TRISTATE_BOOL_ABSENT)
+            virBufferAsprintf(buf, " mptcp='%s'",
+                              virTristateBoolTypeToString(inet->mptcp));
+         break;
+    }
+    case VIR_DOMAIN_SOCKET_ADDRESS_UNIX:
+    {
+        UnixSocketAddress *Unix = &sa->u.Unix;
+
+        virBufferAsprintf(buf, " path='%s'", Unix->path);
+        if (Unix->abstract != VIR_TRISTATE_BOOL_ABSENT)
+            virBufferAsprintf(buf, " abstract='%s'",
+                              virTristateBoolTypeToString(Unix->abstract));
+        if (Unix->tight != VIR_TRISTATE_BOOL_ABSENT)
+            virBufferAsprintf(buf, " tight='%s'",
+                              virTristateBoolTypeToString(Unix->tight));
+        break;
+    }
+    case VIR_DOMAIN_SOCKET_ADDRESS_VSOCK:
+    {
+        VsockSocketAddress *vsock = &sa->u.vsock;
+
+        virBufferAsprintf(buf, " cid='%s' port='%s'", vsock->cid, vsock->port);
+        break;
+    }
+    case VIR_DOMAIN_SOCKET_ADDRESS_FD:
+    {
+        FdSocketAddress *fd = &sa->u.fd;
+
+        virBufferAsprintf(buf, " str='%s'", fd->str);
+        break;
+    }
+    case VIR_DOMAIN_SOCKET_ADDRESS_NONE:
+    case VIR_DOMAIN_SOCKET_ADDRESS_LAST:
+    default:
+        break;
+    }
+    virBufferAddLit(buf, "/>\n");
+    virBufferAdjustIndent(buf, -2);
+    virBufferAddLit(buf, "</quoteGenerationService>\n");
+}
+
 
 static void
 virDomainSecDefFormat(virBuffer *buf, virDomainSecDef *sec)
@@ -27219,6 +27512,22 @@ virDomainSecDefFormat(virBuffer *buf, virDomainSecDef *sec)
     case VIR_DOMAIN_LAUNCH_SECURITY_SEV_SNP:
         virDomainSEVSNPDefFormat(&attrBuf, &childBuf, &sec->data.sev_snp);
         break;
+
+    case VIR_DOMAIN_LAUNCH_SECURITY_TDX: {
+        virDomainTDXDef *tdx = &sec->data.tdx;
+
+        virBufferAsprintf(&childBuf, "<policy>0x%llx</policy>\n", tdx->policy);
+
+        if (tdx->mrconfigid)
+            virBufferEscapeString(&childBuf, "<mrConfigId>%s</mrConfigId>\n", tdx->mrconfigid);
+        if (tdx->mrowner)
+            virBufferEscapeString(&childBuf, "<mrOwner>%s</mrOwner>\n", tdx->mrowner);
+        if (tdx->mrownerconfig)
+            virBufferEscapeString(&childBuf, "<mrOwnerConfig>%s</mrOwnerConfig>\n", tdx->mrownerconfig);
+        virDomainTDXQGSDefFormat(&childBuf, tdx);
+
+        break;
+    }
 
     case VIR_DOMAIN_LAUNCH_SECURITY_PV:
         break;

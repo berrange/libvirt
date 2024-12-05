@@ -19059,6 +19059,7 @@ qemuDomainGetLaunchSecurityInfo(virDomainPtr domain,
         if (qemuDomainGetSEVInfo(vm, params, nparams, flags) < 0)
             goto cleanup;
         break;
+    case VIR_DOMAIN_LAUNCH_SECURITY_TDX:
     case VIR_DOMAIN_LAUNCH_SECURITY_PV:
         break;
     case VIR_DOMAIN_LAUNCH_SECURITY_NONE:

@@ -1873,6 +1873,14 @@ virDomainDefLaunchSecurityValidate(const virDomainDef *def)
         CHECK_BASE64_LEN(sev_snp->host_data, "hostData", 32);
         break;
 
+    case VIR_DOMAIN_LAUNCH_SECURITY_TDX:
+        if (def->sec->data.tdx.policy & ~VIR_DOMAIN_TDX_POLICY_ALLOWED_MASK) {
+            virReportError(VIR_ERR_CONFIG_UNSUPPORTED, "%s",
+                           _("Only bit0(debug) and bit28(sept-ve-disable) are supported intel TDX launch security policy"));
+            return -1;
+        }
+        break;
+
     case VIR_DOMAIN_LAUNCH_SECURITY_NONE:
     case VIR_DOMAIN_LAUNCH_SECURITY_SEV:
     case VIR_DOMAIN_LAUNCH_SECURITY_PV:

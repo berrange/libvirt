@@ -1063,9 +1063,35 @@ qemuMonitorEmitEvent(qemuMonitor *mon, const char *event,
 
 
 void
-qemuMonitorEmitShutdown(qemuMonitor *mon, virTristateBool guest)
+qemuMonitorEmitShutdown(qemuMonitor *mon, virTristateBool guest,
+                        const char *reason)
 {
+    virDomainObj *vm = mon->vm;
+
     VIR_DEBUG("mon=%p guest=%u", mon, guest);
+
+    /* This isn't best place to set FakeReboot but we need to access
+     * mon->vm which is defined in this file. Reboot command in guest
+     * will trigger SHUTDOWN event for TDX guest, so we has to deal
+     * with it here. */
+    if (vm->def->sec &&
+        vm->def->sec->sectype == VIR_DOMAIN_LAUNCH_SECURITY_TDX) {
+        qemuDomainObjPrivate *priv = vm->privateData;
+
+        /* For secure guest, FakeReboot kills original QEMU instance and
+         * create new one. During this process, QEMU send SHUTDOWN event
+         * with "host-signal" reason which can trigger another FakeReboot.
+         * Check if a FakeReboot is ongoing and bypass "host-signal"
+         * processing which is originally come from FakeReboot. */
+        if (priv->fakeReboot && STREQ_NULLABLE(reason, "host-signal"))
+            return;
+
+        if ((STREQ_NULLABLE(reason, "guest-shutdown") &&
+             vm->def->onPoweroff == VIR_DOMAIN_LIFECYCLE_ACTION_RESTART) ||
+            (STREQ_NULLABLE(reason, "guest-reset") &&
+             vm->def->onReboot == VIR_DOMAIN_LIFECYCLE_ACTION_RESTART))
+            qemuDomainSetFakeReboot(vm, true);
+    }
 
     QEMU_MONITOR_CALLBACK(mon, domainShutdown, mon->vm, guest);
 }
