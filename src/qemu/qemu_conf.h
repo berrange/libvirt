@@ -200,6 +200,7 @@ struct _virQEMUDriverConfig {
     char *autoDumpPath;
     bool autoDumpBypassCache;
     bool autoStartBypassCache;
+    int autoStartDelayMS;
 
     char *lockManagerName;
 
