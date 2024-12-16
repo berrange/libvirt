@@ -84,6 +84,7 @@ typedef struct _virDomainDriverAutoStartConfig {
     char *stateDir;
     virDomainDriverAutoStartCallback callback;
     void *opaque;
+    int delayMS; /* milliseconds between starting each guest */
 } virDomainDriverAutoStartConfig;
 
 void virDomainDriverAutoStart(virDomainObjList *domains,
