@@ -303,6 +303,21 @@ virQEMUDriverConfig *virQEMUDriverConfigNew(bool privileged,
     cfg->dumpGuestCore = true;
 #endif
 
+    if (privileged) {
+        /*
+         * Defer to libvirt-guests.service.
+         *
+         * XXX, or query if libvirt-guests.service is enabled perhaps ?
+         */
+        cfg->autoShutdownTrySave = VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_NONE;
+        cfg->autoShutdownTryShutdown = VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_NONE;
+        cfg->autoShutdownPoweroff = VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_NONE;
+    } else {
+        cfg->autoShutdownTrySave = VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_ALL;
+        cfg->autoShutdownTryShutdown = VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_NONE;
+        cfg->autoShutdownPoweroff = VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_NONE;
+    }
+
     return g_steal_pointer(&cfg);
 }
 
@@ -626,6 +641,8 @@ static int
 virQEMUDriverConfigLoadSaveEntry(virQEMUDriverConfig *cfg,
                                  virConf *conf)
 {
+    g_autofree char *autoShutdownScope = NULL;
+
     if (virConfGetValueString(conf, "save_image_format", &cfg->saveImageFormat) < 0)
         return -1;
     if (virConfGetValueString(conf, "dump_image_format", &cfg->dumpImageFormat) < 0)
@@ -640,6 +657,40 @@ virQEMUDriverConfigLoadSaveEntry(virQEMUDriverConfig *cfg,
         return -1;
     if (virConfGetValueInt(conf, "auto_start_delay", &cfg->autoStartDelayMS) < 0)
         return -1;
+    if (virConfGetValueString(conf, "auto_shutdown_try_save", &autoShutdownScope) < 0)
+        return -1;
+
+    if (autoShutdownScope != NULL &&
+        (cfg->autoShutdownTrySave =
+         virDomainDriverAutoShutdownScopeTypeFromString(autoShutdownScope)) < 0) {
+        virReportError(VIR_ERR_INVALID_ARG,
+                       _("unknown auto_shutdown_try_save '%1$s'"),
+                       autoShutdownScope);
+        return -1;
+    }
+
+    if (virConfGetValueString(conf, "auto_shutdown_try_shutdown", &autoShutdownScope) < 0)
+        return -1;
+
+    if (autoShutdownScope != NULL &&
+        (cfg->autoShutdownTryShutdown =
+         virDomainDriverAutoShutdownScopeTypeFromString(autoShutdownScope)) < 0) {
+        virReportError(VIR_ERR_INVALID_ARG,
+                       _("unknown auto_shutdown_try_shutdown '%1$s'"),
+                       autoShutdownScope);
+        return -1;
+    }
+    if (virConfGetValueString(conf, "auto_shutdown_poweroff", &autoShutdownScope) < 0)
+        return -1;
+
+    if (autoShutdownScope != NULL &&
+        (cfg->autoShutdownPoweroff =
+         virDomainDriverAutoShutdownScopeTypeFromString(autoShutdownScope)) < 0) {
+        virReportError(VIR_ERR_INVALID_ARG,
+                       _("unknown auto_shutdown_poweroff '%1$s'"),
+                       autoShutdownScope);
+        return -1;
+    }
 
     return 0;
 }
