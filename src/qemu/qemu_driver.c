@@ -950,6 +950,7 @@ qemuStateStop(void)
         .trySave = cfg->autoShutdownTrySave,
         .tryShutdown = cfg->autoShutdownTryShutdown,
         .poweroff = cfg->autoShutdownPoweroff,
+        .waitShutdownSecs = cfg->autoShutdownWait,
     };
 
     virDomainDriverAutoShutdown(&ascfg);

@@ -692,6 +692,10 @@ virQEMUDriverConfigLoadSaveEntry(virQEMUDriverConfig *cfg,
         return -1;
     }
 
+    if (virConfGetValueInt(conf, "auto_shutdown_wait",
+                           &cfg->autoShutdownWait) < 0)
+        return -1;
+
     return 0;
 }
 
