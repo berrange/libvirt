@@ -725,9 +725,9 @@ virDomainDriverAutoShutdown(virDomainDriverAutoShutdownConfig *cfg)
     g_autofree bool *transient = NULL;
 
     VIR_DEBUG("Run autoshutdown uri=%s trySave=%d tryShutdown=%d poweroff=%d"
-              "waitShutdownSecs=%d",
+              "waitShutdownSecs=%d saveBypassCache=%d",
               cfg->uri, cfg->trySave, cfg->tryShutdown, cfg->poweroff,
-              cfg->waitShutdownSecs);
+              cfg->waitShutdownSecs, cfg->saveBypassCache);
 
     /*
      * Ideally guests will shutdown in a few seconds, but it would
@@ -784,6 +784,9 @@ virDomainDriverAutoShutdown(virDomainDriverAutoShutdownConfig *cfg)
                 if (state == VIR_DOMAIN_PAUSED)
                     flags[i] = VIR_DOMAIN_SAVE_PAUSED;
             }
+            if (cfg->saveBypassCache)
+                flags[i] |= VIR_DOMAIN_SAVE_BYPASS_CACHE;
+
             virDomainSuspend(domains[i]);
         }
 
