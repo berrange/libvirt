@@ -92,6 +92,10 @@ void virDomainDriverAutoStart(virDomainObjList *domains,
 
 typedef struct _virDomainDriverAutoShutdownConfig {
     const char *uri;
+    bool trySave;
+    bool tryShutdown;
+    bool poweroff;
+    int waitShutdownSecs;
 } virDomainDriverAutoShutdownConfig;
 
 void virDomainDriverAutoShutdown(virDomainDriverAutoShutdownConfig *cfg);
