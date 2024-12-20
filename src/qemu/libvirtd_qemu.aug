@@ -100,7 +100,7 @@ module Libvirtd_qemu =
                  | int_entry "auto_start_delay"
                  | str_entry "auto_shutdown_try_save"
                  | str_entry "auto_shutdown_try_shutdown"
-                 | str_entry "auto_shutdown_powerdown"
+                 | str_entry "auto_shutdown_poweroff"
 
    let process_entry = str_entry "hugetlbfs_mount"
                  | str_entry "bridge_helper"

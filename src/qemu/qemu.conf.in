@@ -647,33 +647,35 @@
 # * "transient" - only try to save transient running VMs
 # * "all" - try to save all running VMs
 #
-# Defaults to "all" for session daemons and "none"
+# Defaults to "persistent" for session daemons and "none"
 # for system daemons
 #
 # If 'libvirt-guests.service' is enabled, then this must be
 # set to 'none' for system daemons to avoid dueling actions
-#auto_shutdown_try_save = "all"
+#auto_shutdown_try_save = "persistent"
 
 # As above, but with a graceful shutdown action instead of
 # managed save. If managed save is enabled, shutdown will
 # be tried only on failure to perform managed save.
 #
-# Defaults to "none"
+# Defaults to "all" for session daemons and "none" for
+# system daemons
 #
 # If 'libvirt-guests.service' is enabled, then this must be
 # set to 'none' for system daemons to avoid dueling actions
-#auto_shutdown_try_shutdown = "none"
+#auto_shutdown_try_shutdown = "all"
 
 # As above, but with a forced poweroff instead of managed
 # save. If managed save or graceful shutdown are enabled,
 # forced poweroff will be tried only on failure of the
 # other options.
 #
-# Defaults to "none"
+# Defaults to "all" for session daemons and "none" for
+# system daemons.
 #
 # If 'libvirt-guests.service' is enabled, then this must be
 # set to 'none' for system daemons to avoid dueling actions
-#auto_shutdown_powerdown = "none"
+#auto_shutdown_poweroff = "all"
 
 # If provided by the host and a hugetlbfs mount point is configured,
 # a guest may request huge page backing.  When this mount point is
