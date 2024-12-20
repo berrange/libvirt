@@ -317,6 +317,7 @@ virQEMUDriverConfig *virQEMUDriverConfigNew(bool privileged,
         cfg->autoShutdownTryShutdown = VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_ALL;
         cfg->autoShutdownPoweroff = VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_ALL;
     }
+    cfg->autoShutdownRestore = true;
 
     return g_steal_pointer(&cfg);
 }
@@ -694,6 +695,8 @@ virQEMUDriverConfigLoadSaveEntry(virQEMUDriverConfig *cfg,
 
     if (virConfGetValueInt(conf, "auto_shutdown_wait",
                            &cfg->autoShutdownWait) < 0)
+        return -1;
+    if (virConfGetValueBool(conf, "auto_shutdown_restore", &cfg->autoShutdownRestore) < 0)
         return -1;
     if (virConfGetValueBool(conf, "auto_save_bypass_cache",
                             &cfg->autoSaveBypassCache) < 0)
