@@ -109,6 +109,7 @@ typedef struct _virDomainDriverAutoShutdownConfig {
     virDomainDriverAutoShutdownScope poweroff;
     int waitShutdownSecs;
     bool saveBypassCache;
+    bool autoRestore;
 } virDomainDriverAutoShutdownConfig;
 
 void virDomainDriverAutoShutdown(virDomainDriverAutoShutdownConfig *cfg);
