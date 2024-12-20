@@ -3282,6 +3282,7 @@ struct _virDomainObj {
     virDomainStateReason state;
 
     unsigned int autostart : 1;
+    unsigned int autostartOnce : 1;
     unsigned int persistent : 1;
     unsigned int updated : 1;
     unsigned int removing : 1;
