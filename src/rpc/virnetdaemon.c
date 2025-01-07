@@ -815,8 +815,10 @@ virNetDaemonRun(virNetDaemon *dmn)
         }
     }
 
+    VIR_DEBUG("Main loop exited");
     if (dmn->graceful) {
         virThreadJoin(&shutdownThread);
+        VIR_DEBUG("Graceful shutdown complete");
     } else {
         VIR_WARN("Make forcefull daemon shutdown");
         exit(EXIT_FAILURE);
@@ -946,6 +948,8 @@ virNetDaemonSetShutdownCallbacks(virNetDaemon *dmn,
 {
     VIR_LOCK_GUARD lock = virObjectLockGuard(dmn);
 
+    VIR_DEBUG("Shutdown callbacks preserve=%p prepare=%p wait=%p",
+              preserveCb, prepareCb, waitCb);
     dmn->shutdownPreserveCb = preserveCb;
     dmn->shutdownPrepareCb = prepareCb;
     dmn->shutdownWaitCb = waitCb;
