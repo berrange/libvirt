@@ -617,8 +617,8 @@ static void daemonRunStateInit(void *opaque)
                                            NULL,
                                            G_DBUS_SIGNAL_FLAGS_NONE,
                                            handleSystemMessageFunc,
-                                               dmn,
-                                               NULL);
+                                           dmn,
+                                           NULL);
 
     /* Only now accept clients from network */
     virNetDaemonUpdateServices(dmn, true);
