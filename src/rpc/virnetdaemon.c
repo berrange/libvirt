@@ -78,6 +78,9 @@ struct _virNetDaemon {
     virNetDaemonShutdownCallback shutdownPrepareCb;
     virNetDaemonShutdownCallback shutdownWaitCb;
     virThread *shutdownPreserveThread;
+    unsigned long long preserveStart;
+    unsigned int preserveExtended;
+    int preserveTimer;
     int quitTimer;
     virNetDaemonQuitPhase quit;
     bool graceful;
@@ -92,6 +95,14 @@ struct _virNetDaemon {
 
 
 static virClass *virNetDaemonClass;
+
+/*
+ * The minimum additional shutdown time (secs) we should ask
+ * systemd to allow, while state preservation operations
+ * are running. A timer will run every 5 seconds, and
+ * ensure at least this much extra time is requested
+ */
+#define VIR_NET_DAEMON_PRESERVE_MIN_TIME 30
 
 static int
 daemonServerClose(void *payload,
@@ -162,6 +173,7 @@ virNetDaemonNew(void)
     if (virEventRegisterDefaultImpl() < 0)
         goto error;
 
+    dmn->preserveTimer = -1;
     dmn->autoShutdownTimerID = -1;
 
 #ifndef WIN32
@@ -728,6 +740,42 @@ daemonShutdownWait(void *opaque)
 }
 
 static void
+virNetDaemonPreserveTimer(int timerid G_GNUC_UNUSED,
+                          void *opaque)
+{
+    virNetDaemon *dmn = opaque;
+    VIR_LOCK_GUARD lock = virObjectLockGuard(dmn);
+    unsigned long long now = g_get_monotonic_time();
+    unsigned long long delta;
+
+    if (dmn->quit != VIR_NET_DAEMON_QUIT_PRESERVING)
+        return;
+
+    VIR_DEBUG("Started at %llu now %llu extended %u",
+              dmn->preserveStart, now, dmn->preserveExtended);
+
+    /* Time since start of preserving state in usec */
+    delta = now - dmn->preserveStart;
+    /* Converts to secs */
+    delta /= (1000ull * 1000ull);
+
+    /* Want extra seconds grace to ensure this timer fires
+     * again before system timeout expires, under high
+     * load conditions */
+    delta += VIR_NET_DAEMON_PRESERVE_MIN_TIME;
+
+    /* Deduct any extension we've previously asked for */
+    delta -= dmn->preserveExtended;
+
+    /* Tell systemd how much more we need to extend by */
+    virSystemdNotifyExtendTimeout(delta);
+    dmn->preserveExtended += delta;
+
+    VIR_DEBUG("Extended by %llu", delta);
+}
+
+
+static void
 virNetDaemonQuitTimer(int timerid G_GNUC_UNUSED,
                       void *opaque)
 {
@@ -781,11 +829,21 @@ virNetDaemonRun(virNetDaemon *dmn)
 
         if (dmn->quit == VIR_NET_DAEMON_QUIT_REQUESTED) {
             VIR_DEBUG("Process quit request");
+            virSystemdNotifyStopping();
             virHashForEach(dmn->servers, daemonServerClose, NULL);
 
             if (dmn->shutdownPreserveThread) {
                 VIR_DEBUG("Shutdown preserve thread running");
                 dmn->quit = VIR_NET_DAEMON_QUIT_PRESERVING;
+                dmn->preserveStart = g_get_monotonic_time();
+                dmn->preserveExtended = VIR_NET_DAEMON_PRESERVE_MIN_TIME;
+                virSystemdNotifyExtendTimeout(dmn->preserveExtended);
+                if ((dmn->preserveTimer = virEventAddTimeout(5 * 1000,
+                                                             virNetDaemonPreserveTimer,
+                                                             dmn, NULL)) < 0) {
+                    VIR_WARN("Failed to register preservation timer");
+                    /* hope for the best */
+                }
             } else {
                 VIR_DEBUG("Ready to shutdown");
                 dmn->quit = VIR_NET_DAEMON_QUIT_READY;
@@ -866,6 +924,10 @@ static void virNetDaemonPreserveWorker(void *opaque)
             dmn->quit = VIR_NET_DAEMON_QUIT_READY;
         }
         g_clear_pointer(&dmn->shutdownPreserveThread, g_free);
+        if (dmn->preserveTimer != -1) {
+            virEventRemoveTimeout(dmn->preserveTimer);
+            dmn->preserveTimer = -1;
+        }
     }
 
     VIR_DEBUG("End preserve dmn=%p", dmn);
