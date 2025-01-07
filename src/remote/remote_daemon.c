@@ -526,8 +526,10 @@ handleSessionMessageFunc(GDBusConnection *connection G_GNUC_UNUSED,
 
     if (virGDBusMessageIsSignal(message,
                                 "org.freedesktop.DBus.Local",
-                                "Disconnected"))
+                                "Disconnected")) {
         virNetDaemonPreserve(dmn);
+        virNetDaemonQuit(dmn);
+    }
 
     return message;
 }
