@@ -66,13 +66,11 @@ int virNetDaemonAddSignalHandler(virNetDaemon *dmn,
 void virNetDaemonUpdateServices(virNetDaemon *dmn,
                                 bool enabled);
 
-void virNetDaemonSetStateStopWorkerThread(virNetDaemon *dmn,
-                                          virThread **thr);
-
 void virNetDaemonRun(virNetDaemon *dmn);
 
 void virNetDaemonQuit(virNetDaemon *dmn);
 void virNetDaemonQuitExecRestart(virNetDaemon *dmn);
+void virNetDaemonPreserve(virNetDaemon *dmn);
 
 bool virNetDaemonHasClients(virNetDaemon *dmn);
 
@@ -84,6 +82,22 @@ bool virNetDaemonHasServer(virNetDaemon *dmn,
 
 typedef int (*virNetDaemonShutdownCallback)(void);
 
+/*
+ * @preserveCb: preserves any active state
+ * @prepareCb: start shutting down daemon
+ * @waitCb: wait for shutdown completion
+ *
+ * The sequence of operations during shutdown is as follows
+ *
+ * - Listener stops accepting new clients
+ * - Existing clients are closed
+ * - Delay until @preserveCb is complete (if running)
+ * - @prepareCb invoked
+ * - Server worker pool is drained in background
+ * - @waitCb is invoked in background
+ * - Main loop terminates
+ */
 void virNetDaemonSetShutdownCallbacks(virNetDaemon *dmn,
+                                      virNetDaemonShutdownCallback preserveCb,
                                       virNetDaemonShutdownCallback prepareCb,
                                       virNetDaemonShutdownCallback waitCb);

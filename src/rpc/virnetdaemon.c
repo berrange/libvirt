@@ -65,9 +65,10 @@ struct _virNetDaemon {
     GHashTable *servers;
     virJSONValue *srvObject;
 
+    virNetDaemonShutdownCallback shutdownPreserveCb;
     virNetDaemonShutdownCallback shutdownPrepareCb;
     virNetDaemonShutdownCallback shutdownWaitCb;
-    virThread *stateStopThread;
+    virThread *shutdownPreserveThread;
     int finishTimer;
     bool quit;
     bool finished;
@@ -107,7 +108,7 @@ virNetDaemonDispose(void *obj)
         virEventRemoveHandle(dmn->sigwatch);
 #endif /* !WIN32 */
 
-    g_free(dmn->stateStopThread);
+    g_free(dmn->shutdownPreserveThread);
 
     g_clear_pointer(&dmn->servers, g_hash_table_unref);
 
@@ -705,8 +706,8 @@ daemonShutdownWait(void *opaque)
 
     virHashForEach(dmn->servers, daemonServerShutdownWait, NULL);
     if (!dmn->shutdownWaitCb || dmn->shutdownWaitCb() >= 0) {
-        if (dmn->stateStopThread)
-            virThreadJoin(dmn->stateStopThread);
+        if (dmn->shutdownPreserveThread)
+            virThreadJoin(dmn->shutdownPreserveThread);
 
         graceful = true;
     }
@@ -802,17 +803,6 @@ virNetDaemonRun(virNetDaemon *dmn)
 
 
 void
-virNetDaemonSetStateStopWorkerThread(virNetDaemon *dmn,
-                                     virThread **thr)
-{
-    VIR_LOCK_GUARD lock = virObjectLockGuard(dmn);
-
-    VIR_DEBUG("Setting state stop worker thread on dmn=%p to thr=%p", dmn, thr);
-    dmn->stateStopThread = g_steal_pointer(thr);
-}
-
-
-void
 virNetDaemonQuit(virNetDaemon *dmn)
 {
     VIR_LOCK_GUARD lock = virObjectLockGuard(dmn);
@@ -830,6 +820,42 @@ virNetDaemonQuitExecRestart(virNetDaemon *dmn)
     VIR_DEBUG("Exec-restart requested %p", dmn);
     dmn->quit = true;
     dmn->execRestart = true;
+}
+
+
+static void virNetDaemonPreserveWorker(void *opaque)
+{
+    virNetDaemon *dmn = opaque;
+
+    VIR_DEBUG("Begin stop dmn=%p", dmn);
+
+    dmn->shutdownPreserveCb();
+
+    VIR_DEBUG("Completed stop dmn=%p", dmn);
+
+    virNetDaemonQuit(dmn);
+    virObjectUnref(dmn);
+}
+
+
+void virNetDaemonPreserve(virNetDaemon *dmn)
+{
+    VIR_LOCK_GUARD lock = virObjectLockGuard(dmn);
+
+    if (!dmn->shutdownPreserveCb ||
+        dmn->shutdownPreserveThread)
+        return;
+
+    virObjectRef(dmn);
+    dmn->shutdownPreserveThread = g_new0(virThread, 1);
+
+    if (virThreadCreateFull(dmn->shutdownPreserveThread, true,
+                            virNetDaemonPreserveWorker,
+                            "daemon-stop", false, dmn) < 0) {
+        virObjectUnref(dmn);
+        g_clear_pointer(&dmn->shutdownPreserveThread, g_free);
+        return;
+    }
 }
 
 
@@ -870,11 +896,13 @@ virNetDaemonHasClients(virNetDaemon *dmn)
 
 void
 virNetDaemonSetShutdownCallbacks(virNetDaemon *dmn,
+                                 virNetDaemonShutdownCallback preserveCb,
                                  virNetDaemonShutdownCallback prepareCb,
                                  virNetDaemonShutdownCallback waitCb)
 {
     VIR_LOCK_GUARD lock = virObjectLockGuard(dmn);
 
+    dmn->shutdownPreserveCb = preserveCb;
     dmn->shutdownPrepareCb = prepareCb;
     dmn->shutdownWaitCb = waitCb;
 }

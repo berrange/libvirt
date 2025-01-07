@@ -90,12 +90,12 @@ virNetDaemonIsPrivileged;
 virNetDaemonNew;
 virNetDaemonNewPostExecRestart;
 virNetDaemonPreExecRestart;
+virNetDaemonPreserve;
 virNetDaemonQuit;
 virNetDaemonQuitExecRestart;
 virNetDaemonRemoveShutdownInhibition;
 virNetDaemonRun;
 virNetDaemonSetShutdownCallbacks;
-virNetDaemonSetStateStopWorkerThread;
 virNetDaemonUpdateServices;
 
 
