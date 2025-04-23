@@ -167,52 +167,29 @@ qemuDomObjFromSnapshot(virDomainSnapshotPtr snapshot)
 
 
 
-static int
+static void
 qemuAutostartDomain(virDomainObj *vm,
                     void *opaque)
 {
     virQEMUDriver *driver = opaque;
     int flags = 0;
     g_autoptr(virQEMUDriverConfig) cfg = virQEMUDriverGetConfig(driver);
-    int ret = -1;
 
     if (cfg->autoStartBypassCache)
         flags |= VIR_DOMAIN_START_BYPASS_CACHE;
 
-    virObjectLock(vm);
-    virObjectRef(vm);
-    virResetLastError();
-    if (vm->autostart &&
-        !virDomainObjIsActive(vm)) {
-        if (qemuProcessBeginJob(vm, VIR_DOMAIN_JOB_OPERATION_START,
-                                flags) < 0) {
-            virReportError(VIR_ERR_INTERNAL_ERROR,
-                           _("Failed to start job on VM '%1$s': %2$s"),
-                           vm->def->name, virGetLastErrorMessage());
-            goto cleanup;
-        }
+    if (qemuProcessBeginJob(vm, VIR_DOMAIN_JOB_OPERATION_START,
+                            flags) < 0)
+        return;
 
-        if (qemuDomainObjStart(NULL, driver, vm, flags,
-                               VIR_ASYNC_JOB_START) < 0) {
-            virReportError(VIR_ERR_INTERNAL_ERROR,
-                           _("Failed to autostart VM '%1$s': %2$s"),
+    if (qemuDomainObjStart(NULL, driver, vm, flags,
+                           VIR_ASYNC_JOB_START) < 0) {
+        virReportError(VIR_ERR_INTERNAL_ERROR,
+                       _("Failed to autostart VM '%1$s': %2$s"),
                            vm->def->name, virGetLastErrorMessage());
-        }
-
-        qemuProcessEndJob(vm);
     }
 
-    ret = 0;
- cleanup:
-    virDomainObjEndAPI(&vm);
-    return ret;
-}
-
-
-static void
-qemuAutostartDomains(virQEMUDriver *driver)
-{
-    virDomainObjListForEach(driver->domains, false, qemuAutostartDomain, driver);
+    qemuProcessEndJob(vm);
 }
 
 
@@ -557,10 +534,10 @@ qemuStateInitialize(bool privileged,
     virQEMUDriverConfig *cfg;
     uid_t run_uid = -1;
     gid_t run_gid = -1;
-    bool autostart = true;
     size_t i;
     const char *defsecmodel = NULL;
     g_autoptr(virIdentity) identity = virIdentityGetCurrent();
+    virDomainDriverAutoStartConfig autostartCfg;
 
     qemu_driver = g_new0(virQEMUDriver, 1);
 
@@ -906,11 +883,13 @@ qemuStateInitialize(bool privileged,
 
     qemuProcessReconnectAll(qemu_driver);
 
-    if (virDriverShouldAutostart(cfg->stateDir, &autostart) < 0)
-        goto error;
-
-    if (autostart)
-        qemuAutostartDomains(qemu_driver);
+    autostartCfg = (virDomainDriverAutoStartConfig) {
+        .stateDir = cfg->stateDir,
+        .callback = qemuAutostartDomain,
+        .opaque = qemu_driver,
+        .delayMS = cfg->autoStartDelayMS,
+    };
+    virDomainDriverAutoStart(qemu_driver->domains, &autostartCfg);
 
     return VIR_DRV_STATE_INIT_COMPLETE;
 
@@ -965,51 +944,20 @@ qemuStateReload(void)
 static int
 qemuStateStop(void)
 {
-    int ret = -1;
-    g_autoptr(virConnect) conn = NULL;
-    int numDomains = 0;
-    size_t i;
-    int state;
-    virDomainPtr *domains = NULL;
-    g_autofree unsigned int *flags = NULL;
     g_autoptr(virQEMUDriverConfig) cfg = virQEMUDriverGetConfig(qemu_driver);
+    virDomainDriverAutoShutdownConfig ascfg = {
+        .uri = cfg->uri,
+        .trySave = cfg->autoShutdownTrySave,
+        .tryShutdown = cfg->autoShutdownTryShutdown,
+        .poweroff = cfg->autoShutdownPoweroff,
+        .waitShutdownSecs = cfg->autoShutdownWait,
+        .saveBypassCache = cfg->autoSaveBypassCache,
+        .autoRestore = cfg->autoShutdownRestore,
+    };
 
-    if (!(conn = virConnectOpen(cfg->uri)))
-        goto cleanup;
+    virDomainDriverAutoShutdown(&ascfg);
 
-    if ((numDomains = virConnectListAllDomains(conn,
-                                               &domains,
-                                               VIR_CONNECT_LIST_DOMAINS_ACTIVE)) < 0)
-        goto cleanup;
-
-    flags = g_new0(unsigned int, numDomains);
-
-    /* First we pause all VMs to make them stop dirtying
-       pages, etc. We remember if any VMs were paused so
-       we can restore that on resume. */
-    for (i = 0; i < numDomains; i++) {
-        flags[i] = VIR_DOMAIN_SAVE_RUNNING;
-        if (virDomainGetState(domains[i], &state, NULL, 0) == 0) {
-            if (state == VIR_DOMAIN_PAUSED)
-                flags[i] = VIR_DOMAIN_SAVE_PAUSED;
-        }
-        virDomainSuspend(domains[i]);
-    }
-
-    ret = 0;
-    /* Then we save the VMs to disk */
-    for (i = 0; i < numDomains; i++)
-        if (virDomainManagedSave(domains[i], flags[i]) < 0)
-            ret = -1;
-
- cleanup:
-    if (domains) {
-        for (i = 0; i < numDomains; i++)
-            virObjectUnref(domains[i]);
-        VIR_FREE(domains);
-    }
-
-    return ret;
+    return 0;
 }
 
 
@@ -7819,6 +7767,99 @@ static int qemuDomainSetAutostart(virDomainPtr dom,
         }
 
         vm->autostart = autostart;
+
+ endjob:
+        virDomainObjEndJob(vm);
+    }
+    ret = 0;
+
+ cleanup:
+    virDomainObjEndAPI(&vm);
+    return ret;
+}
+
+
+static int qemuDomainGetAutostartOnce(virDomainPtr dom,
+                                      int *autostart)
+{
+    virDomainObj *vm;
+    int ret = -1;
+
+    if (!(vm = qemuDomainObjFromDomain(dom)))
+        goto cleanup;
+
+    if (virDomainGetAutostartOnceEnsureACL(dom->conn, vm->def) < 0)
+        goto cleanup;
+
+    *autostart = vm->autostartOnce;
+    ret = 0;
+
+ cleanup:
+    virDomainObjEndAPI(&vm);
+    return ret;
+}
+
+static int qemuDomainSetAutostartOnce(virDomainPtr dom,
+                                      int autostart)
+{
+    virQEMUDriver *driver = dom->conn->privateData;
+    virDomainObj *vm;
+    g_autofree char *configFile = NULL;
+    g_autofree char *autostartLink = NULL;
+    g_autofree char *autostartOnceLink = NULL;
+    int ret = -1;
+    g_autoptr(virQEMUDriverConfig) cfg = NULL;
+
+    if (!(vm = qemuDomainObjFromDomain(dom)))
+        return -1;
+
+    cfg = virQEMUDriverGetConfig(driver);
+
+    if (virDomainSetAutostartOnceEnsureACL(dom->conn, vm->def) < 0)
+        goto cleanup;
+
+    if (!vm->persistent) {
+        virReportError(VIR_ERR_OPERATION_INVALID,
+                       "%s", _("cannot set autostart for transient domain"));
+        goto cleanup;
+    }
+
+    autostart = (autostart != 0);
+
+    if (vm->autostartOnce != autostart) {
+        if (virDomainObjBeginJob(vm, VIR_JOB_MODIFY) < 0)
+            goto cleanup;
+
+        configFile = virDomainConfigFile(cfg->configDir, vm->def->name);
+        autostartLink = virDomainConfigFile(cfg->autostartDir, vm->def->name);
+        autostartOnceLink = g_strdup_printf("%s.once", autostartLink);
+
+        if (autostart) {
+            if (g_mkdir_with_parents(cfg->autostartDir, 0777) < 0) {
+                virReportSystemError(errno,
+                                     _("cannot create autostart directory %1$s"),
+                                     cfg->autostartDir);
+                goto endjob;
+            }
+
+            if (symlink(configFile, autostartOnceLink) < 0) {
+                virReportSystemError(errno,
+                                     _("Failed to create symlink '%1$s' to '%2$s'"),
+                                     autostartOnceLink, configFile);
+                goto endjob;
+            }
+        } else {
+            if (unlink(autostartOnceLink) < 0 &&
+                errno != ENOENT &&
+                errno != ENOTDIR) {
+                virReportSystemError(errno,
+                                     _("Failed to delete symlink '%1$s'"),
+                                     autostartOnceLink);
+                goto endjob;
+            }
+        }
+
+        vm->autostartOnce = autostart;
 
  endjob:
         virDomainObjEndJob(vm);
@@ -20310,6 +20351,8 @@ static virHypervisorDriver qemuHypervisorDriver = {
     .domainSetLaunchSecurityState = qemuDomainSetLaunchSecurityState, /* 8.0.0 */
     .domainFDAssociate = qemuDomainFDAssociate, /* 9.0.0 */
     .domainGraphicsReload = qemuDomainGraphicsReload, /* 10.2.0 */
+    .domainGetAutostartOnce = qemuDomainGetAutostartOnce, /* 11.0.0 */
+    .domainSetAutostartOnce = qemuDomainSetAutostartOnce, /* 11.0.0 */
 };
 
 

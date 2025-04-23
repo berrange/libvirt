@@ -23,6 +23,8 @@
 #include "node_device_conf.h"
 #include "virhostdev.h"
 #include "virpci.h"
+#include "virdomainobjlist.h"
+#include "virenum.h"
 
 char *
 virDomainDriverGenerateRootHash(const char *drivername,
@@ -71,3 +73,43 @@ int virDomainDriverDelIOThreadCheck(virDomainDef *def,
 int virDomainDriverGetIOThreadsConfig(virDomainDef *targetDef,
                                       virDomainIOThreadInfoPtr **info,
                                       unsigned int bitmap_size);
+
+/*
+ * Will be called with 'vm' locked and ref count held,
+ * which will be released when this returns.
+ */
+typedef void (*virDomainDriverAutoStartCallback)(virDomainObj *vm,
+                                                 void *opaque);
+
+typedef struct _virDomainDriverAutoStartConfig {
+    const char *stateDir;
+    virDomainDriverAutoStartCallback callback;
+    void *opaque;
+    int delayMS; /* milliseconds between starting each guest */
+} virDomainDriverAutoStartConfig;
+
+void virDomainDriverAutoStart(virDomainObjList *domains,
+                              virDomainDriverAutoStartConfig *cfg);
+
+typedef enum {
+    VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_NONE,
+    VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_PERSISTENT,
+    VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_TRANSIENT,
+    VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_ALL,
+
+    VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_LAST,
+} virDomainDriverAutoShutdownScope;
+
+VIR_ENUM_DECL(virDomainDriverAutoShutdownScope);
+
+typedef struct _virDomainDriverAutoShutdownConfig {
+    const char *uri;
+    virDomainDriverAutoShutdownScope trySave;
+    virDomainDriverAutoShutdownScope tryShutdown;
+    virDomainDriverAutoShutdownScope poweroff;
+    int waitShutdownSecs;
+    bool saveBypassCache;
+    bool autoRestore;
+} virDomainDriverAutoShutdownConfig;
+
+void virDomainDriverAutoShutdown(virDomainDriverAutoShutdownConfig *cfg);

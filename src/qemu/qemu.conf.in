@@ -634,6 +634,65 @@
 #
 #auto_start_bypass_cache = 0
 
+# Delay in milliseconds between starting each VM, during autostart
+#
+#auto_start_delay = 0
+
+# Whether to perform managed save of running VMs if a host OS
+# shutdown is requested (system/session daemons), or the desktop
+# session terminates (session daemon only). Accepts
+#
+# * "none" - do not try to save any running VMs
+# * "persistent" - only try to save persistent running VMs
+# * "transient" - only try to save transient running VMs
+# * "all" - try to save all running VMs
+#
+# Defaults to "persistent" for session daemons and "none"
+# for system daemons
+#
+# If 'libvirt-guests.service' is enabled, then this must be
+# set to 'none' for system daemons to avoid dueling actions
+#auto_shutdown_try_save = "persistent"
+
+# As above, but with a graceful shutdown action instead of
+# managed save. If managed save is enabled, shutdown will
+# be tried only on failure to perform managed save.
+#
+# Defaults to "all" for session daemons and "none" for
+# system daemons
+#
+# If 'libvirt-guests.service' is enabled, then this must be
+# set to 'none' for system daemons to avoid dueling actions
+#auto_shutdown_try_shutdown = "all"
+
+# As above, but with a forced poweroff instead of managed
+# save. If managed save or graceful shutdown are enabled,
+# forced poweroff will be tried only on failure of the
+# other options.
+#
+# Defaults to "all" for session daemons and "none" for
+# system daemons.
+#
+# If 'libvirt-guests.service' is enabled, then this must be
+# set to 'none' for system daemons to avoid dueling actions
+#auto_shutdown_poweroff = "all"
+
+# How may seconds to wait for running VMs to gracefully shutdown
+# when 'auto_shutdown_try_shutdown' is enabled
+#auto_shutdown_wait = 30
+
+# Whether VMs that are automatically shutdown are set to
+# automatically restore on next boot
+#auto_shutdown_restore = 1
+
+# When a domain is configured to be auto-saved on shutdown, enabling
+# this flag has the same effect as using the VIR_DOMAIN_SAVE_BYPASS_CACHE
+# flag with the virDomainManagedSave API.  That is, the system will
+# avoid using the file system cache when writing any managed state
+# file, but may cause slower operation.
+#
+#auto_save_bypass_cache = 0
+
 # If provided by the host and a hugetlbfs mount point is configured,
 # a guest may request huge page backing.  When this mount point is
 # unspecified here, determination of a host mount point in /proc/mounts

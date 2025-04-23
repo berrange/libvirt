@@ -39,6 +39,15 @@
 
 VIR_LOG_INIT("rpc.netdaemon");
 
+typedef enum {
+    VIR_NET_DAEMON_QUIT_NONE,
+    VIR_NET_DAEMON_QUIT_REQUESTED,
+    VIR_NET_DAEMON_QUIT_PRESERVING,
+    VIR_NET_DAEMON_QUIT_READY,
+    VIR_NET_DAEMON_QUIT_WAITING,
+    VIR_NET_DAEMON_QUIT_COMPLETED,
+} virNetDaemonQuitPhase;
+
 #ifndef WIN32
 typedef struct _virNetDaemonSignal virNetDaemonSignal;
 struct _virNetDaemonSignal {
@@ -65,12 +74,15 @@ struct _virNetDaemon {
     GHashTable *servers;
     virJSONValue *srvObject;
 
+    virNetDaemonShutdownCallback shutdownPreserveCb;
     virNetDaemonShutdownCallback shutdownPrepareCb;
     virNetDaemonShutdownCallback shutdownWaitCb;
-    virThread *stateStopThread;
-    int finishTimer;
-    bool quit;
-    bool finished;
+    virThread *shutdownPreserveThread;
+    unsigned long long preserveStart;
+    unsigned int preserveExtended;
+    int preserveTimer;
+    int quitTimer;
+    virNetDaemonQuitPhase quit;
     bool graceful;
     bool execRestart;
     bool running; /* the daemon has reached the running phase */
@@ -83,6 +95,14 @@ struct _virNetDaemon {
 
 
 static virClass *virNetDaemonClass;
+
+/*
+ * The minimum additional shutdown time (secs) we should ask
+ * systemd to allow, while state preservation operations
+ * are running. A timer will run every 5 seconds, and
+ * ensure at least this much extra time is requested
+ */
+#define VIR_NET_DAEMON_PRESERVE_MIN_TIME 30
 
 static int
 daemonServerClose(void *payload,
@@ -107,7 +127,7 @@ virNetDaemonDispose(void *obj)
         virEventRemoveHandle(dmn->sigwatch);
 #endif /* !WIN32 */
 
-    g_free(dmn->stateStopThread);
+    g_free(dmn->shutdownPreserveThread);
 
     g_clear_pointer(&dmn->servers, g_hash_table_unref);
 
@@ -153,6 +173,7 @@ virNetDaemonNew(void)
     if (virEventRegisterDefaultImpl() < 0)
         goto error;
 
+    dmn->preserveTimer = -1;
     dmn->autoShutdownTimerID = -1;
 
 #ifndef WIN32
@@ -413,7 +434,10 @@ virNetDaemonAutoShutdownTimer(int timerid G_GNUC_UNUSED,
 
     if (!dmn->autoShutdownInhibitions) {
         VIR_DEBUG("Automatic shutdown triggered");
-        dmn->quit = true;
+        if (dmn->quit == VIR_NET_DAEMON_QUIT_NONE) {
+            VIR_DEBUG("Requesting daemon shutdown");
+            dmn->quit = VIR_NET_DAEMON_QUIT_REQUESTED;
+        }
     }
 }
 
@@ -704,27 +728,62 @@ daemonShutdownWait(void *opaque)
     bool graceful = false;
 
     virHashForEach(dmn->servers, daemonServerShutdownWait, NULL);
-    if (!dmn->shutdownWaitCb || dmn->shutdownWaitCb() >= 0) {
-        if (dmn->stateStopThread)
-            virThreadJoin(dmn->stateStopThread);
-
+    if (!dmn->shutdownWaitCb || dmn->shutdownWaitCb() >= 0)
         graceful = true;
-    }
 
     VIR_WITH_OBJECT_LOCK_GUARD(dmn) {
         dmn->graceful = graceful;
-        virEventUpdateTimeout(dmn->finishTimer, 0);
+        dmn->quit = VIR_NET_DAEMON_QUIT_COMPLETED;
+        virEventUpdateTimeout(dmn->quitTimer, 0);
+        VIR_DEBUG("Shutdown wait completed graceful=%d", graceful);
     }
 }
 
 static void
-virNetDaemonFinishTimer(int timerid G_GNUC_UNUSED,
-                        void *opaque)
+virNetDaemonPreserveTimer(int timerid G_GNUC_UNUSED,
+                          void *opaque)
+{
+    virNetDaemon *dmn = opaque;
+    VIR_LOCK_GUARD lock = virObjectLockGuard(dmn);
+    unsigned long long now = g_get_monotonic_time();
+    unsigned long long delta;
+
+    if (dmn->quit != VIR_NET_DAEMON_QUIT_PRESERVING)
+        return;
+
+    VIR_DEBUG("Started at %llu now %llu extended %u",
+              dmn->preserveStart, now, dmn->preserveExtended);
+
+    /* Time since start of preserving state in usec */
+    delta = now - dmn->preserveStart;
+    /* Converts to secs */
+    delta /= (1000ull * 1000ull);
+
+    /* Want extra seconds grace to ensure this timer fires
+     * again before system timeout expires, under high
+     * load conditions */
+    delta += VIR_NET_DAEMON_PRESERVE_MIN_TIME;
+
+    /* Deduct any extension we've previously asked for */
+    delta -= dmn->preserveExtended;
+
+    /* Tell systemd how much more we need to extend by */
+    virSystemdNotifyExtendTimeout(delta);
+    dmn->preserveExtended += delta;
+
+    VIR_DEBUG("Extended by %llu", delta);
+}
+
+
+static void
+virNetDaemonQuitTimer(int timerid G_GNUC_UNUSED,
+                      void *opaque)
 {
     virNetDaemon *dmn = opaque;
     VIR_LOCK_GUARD lock = virObjectLockGuard(dmn);
 
-    dmn->finished = true;
+    dmn->quit = VIR_NET_DAEMON_QUIT_COMPLETED;
+    VIR_DEBUG("Shutdown wait timed out");
 }
 
 
@@ -741,18 +800,17 @@ virNetDaemonRun(virNetDaemon *dmn)
         goto cleanup;
     }
 
-    dmn->quit = false;
-    dmn->finishTimer = -1;
-    dmn->finished = false;
+    dmn->quit = VIR_NET_DAEMON_QUIT_NONE;
+    dmn->quitTimer = -1;
     dmn->graceful = false;
     dmn->running = true;
 
     /* We are accepting connections now. Notify systemd
      * so it can start dependent services. */
-    virSystemdNotifyStartup();
+    virSystemdNotifyReady();
 
     VIR_DEBUG("dmn=%p quit=%d", dmn, dmn->quit);
-    while (!dmn->finished) {
+    while (dmn->quit != VIR_NET_DAEMON_QUIT_COMPLETED) {
         virNetDaemonShutdownTimerUpdate(dmn);
 
         virObjectUnlock(dmn);
@@ -766,17 +824,40 @@ virNetDaemonRun(virNetDaemon *dmn)
         virHashForEach(dmn->servers, daemonServerProcessClients, NULL);
 
         /* don't shutdown services when performing an exec-restart */
-        if (dmn->quit && dmn->execRestart)
+        if (dmn->quit == VIR_NET_DAEMON_QUIT_REQUESTED && dmn->execRestart)
             goto cleanup;
 
-        if (dmn->quit && dmn->finishTimer == -1) {
+        if (dmn->quit == VIR_NET_DAEMON_QUIT_REQUESTED) {
+            VIR_DEBUG("Process quit request");
+            virSystemdNotifyStopping();
             virHashForEach(dmn->servers, daemonServerClose, NULL);
+
+            if (dmn->shutdownPreserveThread) {
+                VIR_DEBUG("Shutdown preserve thread running");
+                dmn->quit = VIR_NET_DAEMON_QUIT_PRESERVING;
+                dmn->preserveStart = g_get_monotonic_time();
+                dmn->preserveExtended = VIR_NET_DAEMON_PRESERVE_MIN_TIME;
+                virSystemdNotifyExtendTimeout(dmn->preserveExtended);
+                if ((dmn->preserveTimer = virEventAddTimeout(5 * 1000,
+                                                             virNetDaemonPreserveTimer,
+                                                             dmn, NULL)) < 0) {
+                    VIR_WARN("Failed to register preservation timer");
+                    /* hope for the best */
+                }
+            } else {
+                VIR_DEBUG("Ready to shutdown");
+                dmn->quit = VIR_NET_DAEMON_QUIT_READY;
+            }
+        }
+
+        if (dmn->quit == VIR_NET_DAEMON_QUIT_READY) {
+            VIR_DEBUG("Starting shutdown, running prepare");
             if (dmn->shutdownPrepareCb && dmn->shutdownPrepareCb() < 0)
                 break;
 
-            if ((dmn->finishTimer = virEventAddTimeout(30 * 1000,
-                                                       virNetDaemonFinishTimer,
-                                                       dmn, NULL)) < 0) {
+            if ((dmn->quitTimer = virEventAddTimeout(30 * 1000,
+                                                     virNetDaemonQuitTimer,
+                                                     dmn, NULL)) < 0) {
                 VIR_WARN("Failed to register finish timer.");
                 break;
             }
@@ -786,11 +867,16 @@ virNetDaemonRun(virNetDaemon *dmn)
                 VIR_WARN("Failed to register join thread.");
                 break;
             }
+
+            VIR_DEBUG("Waiting for shutdown completion");
+            dmn->quit = VIR_NET_DAEMON_QUIT_WAITING;
         }
     }
 
+    VIR_DEBUG("Main loop exited");
     if (dmn->graceful) {
         virThreadJoin(&shutdownThread);
+        VIR_DEBUG("Graceful shutdown complete");
     } else {
         VIR_WARN("Make forcefull daemon shutdown");
         exit(EXIT_FAILURE);
@@ -802,23 +888,12 @@ virNetDaemonRun(virNetDaemon *dmn)
 
 
 void
-virNetDaemonSetStateStopWorkerThread(virNetDaemon *dmn,
-                                     virThread **thr)
-{
-    VIR_LOCK_GUARD lock = virObjectLockGuard(dmn);
-
-    VIR_DEBUG("Setting state stop worker thread on dmn=%p to thr=%p", dmn, thr);
-    dmn->stateStopThread = g_steal_pointer(thr);
-}
-
-
-void
 virNetDaemonQuit(virNetDaemon *dmn)
 {
     VIR_LOCK_GUARD lock = virObjectLockGuard(dmn);
 
     VIR_DEBUG("Quit requested %p", dmn);
-    dmn->quit = true;
+    dmn->quit = VIR_NET_DAEMON_QUIT_REQUESTED;
 }
 
 
@@ -828,8 +903,67 @@ virNetDaemonQuitExecRestart(virNetDaemon *dmn)
     VIR_LOCK_GUARD lock = virObjectLockGuard(dmn);
 
     VIR_DEBUG("Exec-restart requested %p", dmn);
-    dmn->quit = true;
+    dmn->quit = VIR_NET_DAEMON_QUIT_REQUESTED;
     dmn->execRestart = true;
+}
+
+
+static void virNetDaemonPreserveWorker(void *opaque)
+{
+    virNetDaemon *dmn = opaque;
+
+    VIR_DEBUG("Begin preserve dmn=%p", dmn);
+
+    dmn->shutdownPreserveCb();
+
+    VIR_DEBUG("Completed preserve dmn=%p", dmn);
+
+    VIR_WITH_OBJECT_LOCK_GUARD(dmn) {
+        if (dmn->quit == VIR_NET_DAEMON_QUIT_PRESERVING) {
+            VIR_DEBUG("Marking shutdown as ready");
+            dmn->quit = VIR_NET_DAEMON_QUIT_READY;
+        }
+        g_clear_pointer(&dmn->shutdownPreserveThread, g_free);
+        if (dmn->preserveTimer != -1) {
+            virEventRemoveTimeout(dmn->preserveTimer);
+            dmn->preserveTimer = -1;
+        }
+    }
+
+    VIR_DEBUG("End preserve dmn=%p", dmn);
+    virObjectUnref(dmn);
+}
+
+
+void virNetDaemonPreserve(virNetDaemon *dmn)
+{
+    VIR_LOCK_GUARD lock = virObjectLockGuard(dmn);
+    VIR_DEBUG("Preserve state request");
+
+    if (!dmn->shutdownPreserveCb) {
+        VIR_DEBUG("No preserve callback registered");
+        return;
+    }
+    if (dmn->shutdownPreserveThread) {
+        VIR_DEBUG("Preserve state thread already running");
+        return;
+    }
+
+    if (dmn->quit != VIR_NET_DAEMON_QUIT_NONE) {
+        VIR_WARN("Already initiated shutdown sequence, unable to preserve state");
+        return;
+    }
+
+    virObjectRef(dmn);
+    dmn->shutdownPreserveThread = g_new0(virThread, 1);
+
+    if (virThreadCreateFull(dmn->shutdownPreserveThread, false,
+                            virNetDaemonPreserveWorker,
+                            "daemon-stop", false, dmn) < 0) {
+        virObjectUnref(dmn);
+        g_clear_pointer(&dmn->shutdownPreserveThread, g_free);
+        return;
+    }
 }
 
 
@@ -870,11 +1004,15 @@ virNetDaemonHasClients(virNetDaemon *dmn)
 
 void
 virNetDaemonSetShutdownCallbacks(virNetDaemon *dmn,
+                                 virNetDaemonShutdownCallback preserveCb,
                                  virNetDaemonShutdownCallback prepareCb,
                                  virNetDaemonShutdownCallback waitCb)
 {
     VIR_LOCK_GUARD lock = virObjectLockGuard(dmn);
 
+    VIR_DEBUG("Shutdown callbacks preserve=%p prepare=%p wait=%p",
+              preserveCb, prepareCb, waitCb);
+    dmn->shutdownPreserveCb = preserveCb;
     dmn->shutdownPrepareCb = prepareCb;
     dmn->shutdownWaitCb = waitCb;
 }

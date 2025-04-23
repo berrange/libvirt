@@ -71,41 +71,19 @@ VIR_LOG_INIT("bhyve.bhyve_driver");
 struct _bhyveConn *bhyve_driver = NULL;
 
 static int
-bhyveAutostartDomain(virDomainObj *vm, void *opaque)
+bhyveAutostartDomain(virDomainObj *vm, void *opaque G_GNUC_UNUSED)
 {
-    const struct bhyveAutostartData *data = opaque;
     int ret = 0;
-    VIR_LOCK_GUARD lock = virObjectLockGuard(vm);
 
-    if (vm->autostart && !virDomainObjIsActive(vm)) {
-        virResetLastError();
-        ret = virBhyveProcessStart(data->conn, vm,
-                                   VIR_DOMAIN_RUNNING_BOOTED, 0);
-        if (ret < 0) {
-            virReportError(VIR_ERR_INTERNAL_ERROR,
-                           _("Failed to autostart VM '%1$s': %2$s"),
-                           vm->def->name, virGetLastErrorMessage());
-        }
+    ret = virBhyveProcessStart(NULL, vm,
+                               VIR_DOMAIN_RUNNING_BOOTED, 0);
+    if (ret < 0) {
+        virReportError(VIR_ERR_INTERNAL_ERROR,
+                       _("Failed to autostart VM '%1$s': %2$s"),
+                       vm->def->name, virGetLastErrorMessage());
     }
+
     return ret;
-}
-
-static void
-bhyveAutostartDomains(struct _bhyveConn *driver)
-{
-    /* XXX: Figure out a better way todo this. The domain
-     * startup code needs a connection handle in order
-     * to lookup the bridge associated with a virtual
-     * network
-     */
-    virConnectPtr conn = virConnectOpen("bhyve:///system");
-    /* Ignoring NULL conn which is mostly harmless here */
-
-    struct bhyveAutostartData data = { driver, conn };
-
-    virDomainObjListForEach(driver->domains, false, bhyveAutostartDomain, &data);
-
-    virObjectUnref(conn);
 }
 
 /**
@@ -1181,7 +1159,7 @@ bhyveStateInitialize(bool privileged,
                      virStateInhibitCallback callback G_GNUC_UNUSED,
                      void *opaque G_GNUC_UNUSED)
 {
-    bool autostart = true;
+    virDomainDriverAutoStartConfig autostartCfg;
 
     if (root != NULL) {
         virReportError(VIR_ERR_INVALID_ARG, "%s",
@@ -1266,11 +1244,12 @@ bhyveStateInitialize(bool privileged,
 
     virBhyveProcessReconnectAll(bhyve_driver);
 
-    if (virDriverShouldAutostart(BHYVE_STATE_DIR, &autostart) < 0)
-        goto cleanup;
-
-    if (autostart)
-        bhyveAutostartDomains(bhyve_driver);
+    autostartCfg = (virDomainDriverAutoStartConfig) {
+        .stateDir = BHYVE_STATE_DIR,
+        .callback = bhyveAutostartDomain,
+        .opaque = bhyve_driver,
+    };
+    virDomainDriverAutoStart(bhyve_driver->domains, &autostartCfg);
 
     return VIR_DRV_STATE_INIT_COMPLETE;
 

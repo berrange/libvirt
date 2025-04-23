@@ -487,9 +487,10 @@ virDomainObjListLoadConfig(virDomainObjList *doms,
 {
     g_autofree char *configFile = NULL;
     g_autofree char *autostartLink = NULL;
+    g_autofree char *autostartOnceLink = NULL;
     g_autoptr(virDomainDef) def = NULL;
     virDomainObj *dom;
-    int autostart;
+    int autostart, autostartOnce;
     g_autoptr(virDomainDef) oldDef = NULL;
 
     configFile = virDomainConfigFile(configDir, name);
@@ -500,13 +501,17 @@ virDomainObjListLoadConfig(virDomainObjList *doms,
         return NULL;
 
     autostartLink = virDomainConfigFile(autostartDir, name);
+    autostartOnceLink = g_strdup_printf("%s.once", autostartLink);
 
     autostart = virFileLinkPointsTo(autostartLink, configFile);
+    autostartOnce = virFileLinkPointsTo(autostartOnceLink, configFile);
+    unlink(autostartOnceLink);
 
     if (!(dom = virDomainObjListAddLocked(doms, &def, xmlopt, 0, &oldDef)))
         return NULL;
 
     dom->autostart = autostart;
+    dom->autostartOnce = autostartOnce;
 
     if (notify)
         (*notify)(dom, oldDef == NULL, opaque);
