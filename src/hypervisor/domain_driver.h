@@ -24,6 +24,7 @@
 #include "virhostdev.h"
 #include "virpci.h"
 #include "virdomainobjlist.h"
+#include "virenum.h"
 
 char *
 virDomainDriverGenerateRootHash(const char *drivername,
@@ -90,3 +91,29 @@ typedef struct _virDomainDriverAutoStartConfig {
 
 void virDomainDriverAutoStart(virDomainObjList *domains,
                               virDomainDriverAutoStartConfig *cfg);
+
+typedef enum {
+    VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_NONE,
+    VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_PERSISTENT,
+    VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_TRANSIENT,
+    VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_ALL,
+
+    VIR_DOMAIN_DRIVER_AUTO_SHUTDOWN_SCOPE_LAST,
+} virDomainDriverAutoShutdownScope;
+
+VIR_ENUM_DECL(virDomainDriverAutoShutdownScope);
+
+typedef struct _virDomainDriverAutoShutdownConfig {
+    const char *uri;
+    virDomainDriverAutoShutdownScope trySave;
+    virDomainDriverAutoShutdownScope tryShutdown;
+    virDomainDriverAutoShutdownScope poweroff;
+    unsigned int waitShutdownSecs; /* Seconds to wait for VM to shutdown
+                                    * before moving onto next action.
+                                    * If 0 a default is used (currently 30 secs)
+                                    */
+    bool saveBypassCache;
+    bool autoRestore;
+} virDomainDriverAutoShutdownConfig;
+
+void virDomainDriverAutoShutdown(virDomainDriverAutoShutdownConfig *cfg);

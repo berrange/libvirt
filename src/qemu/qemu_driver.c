@@ -963,51 +963,20 @@ qemuStateReload(void)
 static int
 qemuStateStop(void)
 {
-    int ret = -1;
-    g_autoptr(virConnect) conn = NULL;
-    int numDomains = 0;
-    size_t i;
-    int state;
-    virDomainPtr *domains = NULL;
-    g_autofree unsigned int *flags = NULL;
     g_autoptr(virQEMUDriverConfig) cfg = virQEMUDriverGetConfig(qemu_driver);
+    virDomainDriverAutoShutdownConfig ascfg = {
+        .uri = cfg->uri,
+        .trySave = cfg->autoShutdownTrySave,
+        .tryShutdown = cfg->autoShutdownTryShutdown,
+        .poweroff = cfg->autoShutdownPoweroff,
+        .waitShutdownSecs = cfg->autoShutdownWait,
+        .saveBypassCache = cfg->autoSaveBypassCache,
+        .autoRestore = cfg->autoShutdownRestore,
+    };
 
-    if (!(conn = virConnectOpen(cfg->uri)))
-        goto cleanup;
+    virDomainDriverAutoShutdown(&ascfg);
 
-    if ((numDomains = virConnectListAllDomains(conn,
-                                               &domains,
-                                               VIR_CONNECT_LIST_DOMAINS_ACTIVE)) < 0)
-        goto cleanup;
-
-    flags = g_new0(unsigned int, numDomains);
-
-    /* First we pause all VMs to make them stop dirtying
-       pages, etc. We remember if any VMs were paused so
-       we can restore that on resume. */
-    for (i = 0; i < numDomains; i++) {
-        flags[i] = VIR_DOMAIN_SAVE_RUNNING;
-        if (virDomainGetState(domains[i], &state, NULL, 0) == 0) {
-            if (state == VIR_DOMAIN_PAUSED)
-                flags[i] = VIR_DOMAIN_SAVE_PAUSED;
-        }
-        virDomainSuspend(domains[i]);
-    }
-
-    ret = 0;
-    /* Then we save the VMs to disk */
-    for (i = 0; i < numDomains; i++)
-        if (virDomainManagedSave(domains[i], flags[i]) < 0)
-            ret = -1;
-
- cleanup:
-    if (domains) {
-        for (i = 0; i < numDomains; i++)
-            virObjectUnref(domains[i]);
-        VIR_FREE(domains);
-    }
-
-    return ret;
+    return 0;
 }
 
 
@@ -7815,6 +7784,101 @@ static int qemuDomainSetAutostart(virDomainPtr dom,
         }
 
         vm->autostart = autostart;
+
+ endjob:
+        virDomainObjEndJob(vm);
+    }
+    ret = 0;
+
+ cleanup:
+    virDomainObjEndAPI(&vm);
+    return ret;
+}
+
+
+static int
+qemuDomainGetAutostartOnce(virDomainPtr dom,
+                           int *autostart)
+{
+    virDomainObj *vm;
+    int ret = -1;
+
+    if (!(vm = qemuDomainObjFromDomain(dom)))
+        goto cleanup;
+
+    if (virDomainGetAutostartOnceEnsureACL(dom->conn, vm->def) < 0)
+        goto cleanup;
+
+    *autostart = vm->autostartOnce;
+    ret = 0;
+
+ cleanup:
+    virDomainObjEndAPI(&vm);
+    return ret;
+}
+
+static int
+qemuDomainSetAutostartOnce(virDomainPtr dom,
+                           int autostart)
+{
+    virQEMUDriver *driver = dom->conn->privateData;
+    virDomainObj *vm;
+    g_autofree char *configFile = NULL;
+    g_autofree char *autostartLink = NULL;
+    g_autofree char *autostartOnceLink = NULL;
+    int ret = -1;
+    g_autoptr(virQEMUDriverConfig) cfg = NULL;
+
+    if (!(vm = qemuDomainObjFromDomain(dom)))
+        return -1;
+
+    cfg = virQEMUDriverGetConfig(driver);
+
+    if (virDomainSetAutostartOnceEnsureACL(dom->conn, vm->def) < 0)
+        goto cleanup;
+
+    if (!vm->persistent) {
+        virReportError(VIR_ERR_OPERATION_INVALID,
+                       "%s", _("cannot set autostart for transient domain"));
+        goto cleanup;
+    }
+
+    autostart = (autostart != 0);
+
+    if (vm->autostartOnce != autostart) {
+        if (virDomainObjBeginJob(vm, VIR_JOB_MODIFY) < 0)
+            goto cleanup;
+
+        configFile = virDomainConfigFile(cfg->configDir, vm->def->name);
+        autostartLink = virDomainConfigFile(cfg->autostartDir, vm->def->name);
+        autostartOnceLink = g_strdup_printf("%s.once", autostartLink);
+
+        if (autostart) {
+            if (g_mkdir_with_parents(cfg->autostartDir, 0777) < 0) {
+                virReportSystemError(errno,
+                                     _("cannot create autostart directory %1$s"),
+                                     cfg->autostartDir);
+                goto endjob;
+            }
+
+            if (symlink(configFile, autostartOnceLink) < 0) {
+                virReportSystemError(errno,
+                                     _("Failed to create symlink '%1$s' to '%2$s'"),
+                                     autostartOnceLink, configFile);
+                goto endjob;
+            }
+        } else {
+            if (unlink(autostartOnceLink) < 0 &&
+                errno != ENOENT &&
+                errno != ENOTDIR) {
+                virReportSystemError(errno,
+                                     _("Failed to delete symlink '%1$s'"),
+                                     autostartOnceLink);
+                goto endjob;
+            }
+        }
+
+        vm->autostartOnce = autostart;
 
  endjob:
         virDomainObjEndJob(vm);
@@ -20219,6 +20283,8 @@ static virHypervisorDriver qemuHypervisorDriver = {
     .domainSetLaunchSecurityState = qemuDomainSetLaunchSecurityState, /* 8.0.0 */
     .domainFDAssociate = qemuDomainFDAssociate, /* 9.0.0 */
     .domainGraphicsReload = qemuDomainGraphicsReload, /* 10.2.0 */
+    .domainGetAutostartOnce = qemuDomainGetAutostartOnce, /* 11.2.0 */
+    .domainSetAutostartOnce = qemuDomainSetAutostartOnce, /* 11.2.0 */
 };
 
 
