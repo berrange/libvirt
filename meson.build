@@ -837,38 +837,21 @@ required_programs = [
   'xsltproc',
 ]
 
-if host_machine.system() == 'freebsd'
-  required_programs += 'ifconfig'
-endif
-
 foreach name : required_programs
   prog = find_program(name, dirs: libvirt_sbin_path)
   varname = name.underscorify()
-  conf.set_quoted(varname.to_upper(), prog.full_path())
   set_variable('@0@_prog'.format(varname), prog)
 endforeach
 
 # optional programs
 
-optional_test_programs = [
+optional_programs = [
   'augparse',
   'black',
   'flake8',
   'pdwtags',
   'pytest',
 ]
-
-optional_programs = [
-  'dmidecode',
-  'ip',
-  'iscsiadm',
-  'mdevctl',
-  'mm-ctl',
-  'modprobe',
-  'ovs-vsctl',
-  'rmmod',
-  'tc',
-] + optional_test_programs
 
 missing_optional_programs = []
 foreach name : optional_programs
@@ -878,12 +861,9 @@ foreach name : optional_programs
     prog_path = prog.full_path()
   else
     prog_path = name
-    if name in optional_test_programs
-      missing_optional_programs += [ name ]
-    endif
+    missing_optional_programs += [ name ]
   endif
 
-  conf.set_quoted(varname.to_upper(), prog_path)
   set_variable('@0@_prog'.format(varname), prog)
 endforeach
 
@@ -1495,16 +1475,7 @@ if not get_option('driver_libvirtd').disabled()
 endif
 
 if not get_option('driver_bhyve').disabled() and host_machine.system() == 'freebsd'
-  bhyve_prog = find_program('bhyve', required: get_option('driver_bhyve'))
-  bhyvectl_prog = find_program('bhyvectl', required: get_option('driver_bhyve'))
-  bhyveload_prog = find_program('bhyveload', required: get_option('driver_bhyve'))
-
-  if bhyve_prog.found() and bhyvectl_prog.found() and bhyveload_prog.found()
-    conf.set('WITH_BHYVE', 1)
-    conf.set_quoted('BHYVE', bhyve_prog.full_path())
-    conf.set_quoted('BHYVECTL', bhyvectl_prog.full_path())
-    conf.set_quoted('BHYVELOAD', bhyveload_prog.full_path())
-  endif
+  conf.set('WITH_BHYVE', 1)
 elif get_option('driver_bhyve').enabled()
   error('The bhyve driver cannot be enabled')
 endif
@@ -1828,22 +1799,9 @@ if conf.has('WITH_LIBVIRTD')
     endif
 
     if fs_enable
-      mount_prog = find_program('mount', required: get_option('storage_fs'), dirs: libvirt_sbin_path)
-      umount_prog = find_program('umount', required: get_option('storage_fs'), dirs: libvirt_sbin_path)
-      mkfs_prog = find_program('mkfs', required: get_option('storage_fs'), dirs: libvirt_sbin_path)
-
-      if not mount_prog.found() or not umount_prog.found() or not mkfs_prog.found()
-        fs_enable = false
-      endif
-    endif
-
-    if fs_enable
       use_storage = true
 
       conf.set('WITH_STORAGE_FS', 1)
-      conf.set_quoted('MOUNT', mount_prog.full_path())
-      conf.set_quoted('UMOUNT', umount_prog.full_path())
-      conf.set_quoted('MKFS', mkfs_prog.full_path())
     endif
   endif
 
@@ -1854,11 +1812,11 @@ if conf.has('WITH_LIBVIRTD')
     error('Need glusterfs (libgfapi) for gluster storage driver')
   endif
 
-  if not get_option('storage_iscsi').disabled() and iscsiadm_prog.found()
+  if not get_option('storage_iscsi').disabled() and host_machine.system() == 'linux'
     use_storage = true
     conf.set('WITH_STORAGE_ISCSI', 1)
   elif get_option('storage_iscsi').enabled()
-    error('We need iscsiadm for iSCSI storage driver')
+    error('Linux host needed for iSCSI storage driver using iscsiadm')
   endif
 
   if not get_option('storage_iscsi_direct').disabled() and libiscsi_dep.found()
@@ -1868,32 +1826,12 @@ if conf.has('WITH_LIBVIRTD')
     error('Need libiscsi for iscsi-direct storage driver')
   endif
 
-  if not get_option('storage_lvm').disabled()
+  if not get_option('storage_lvm').disabled() and host_machine.system() == 'linux'
     lvm_enable = true
-    lvm_progs = [
-      'pvcreate', 'vgcreate', 'lvcreate',
-      'pvremove', 'vgremove', 'lvremove',
-      'lvchange', 'vgchange', 'vgscan',
-      'pvs', 'vgs', 'lvs',
-    ]
-    foreach name : lvm_progs
-      set_variable(
-        '@0@_prog'.format(name),
-        find_program(name, required: get_option('storage_lvm'), dirs: libvirt_sbin_path)
-      )
-      if not get_variable('@0@_prog'.format(name)).found()
-        lvm_enable = false
-      endif
-    endforeach
-
-    if lvm_enable
-      use_storage = true
-      conf.set('WITH_STORAGE_LVM', 1)
-
-      foreach name : lvm_progs
-        conf.set_quoted(name.to_upper(), get_variable('@0@_prog'.format(name)).full_path())
-      endforeach
-    endif
+    use_storage = true
+    conf.set('WITH_STORAGE_LVM', 1)
+  elif get_option('storage_lvm').enabled()
+    error('Linux host needed for LVM storage driver')
   endif
 
   if not get_option('storage_mpath').disabled() and host_machine.system() == 'linux' and devmapper_dep.found()
@@ -2041,14 +1979,10 @@ if not get_option('nss').disabled()
   endif
 endif
 
-if not get_option('numad').disabled() and numactl_dep.found()
-  numad_prog = find_program('numad', required: get_option('numad'), dirs: libvirt_sbin_path)
-  if numad_prog.found()
-    conf.set('WITH_NUMAD', 1)
-    conf.set_quoted('NUMAD', numad_prog.full_path())
-  endif
+if not get_option('numad').disabled() and numactl_dep.found() and host_machine.system() == 'linux'
+  conf.set('WITH_NUMAD', 1)
 elif get_option('numad').enabled()
-  error('You must have numactl enabled for numad support.')
+  error('You must have a Linux host with numactl enabled for numad support.')
 endif
 
 # nwfilter should only be compiled for linux, and only if the
